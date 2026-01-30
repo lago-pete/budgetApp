@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
-const Transaction = require('../models/Transaction'); // Needed for reassignment
+const Transaction = require('../models/Transaction');
 const jwt = require('jsonwebtoken');
 
 const auth = (req, res, next) => {
@@ -25,29 +25,47 @@ router.get('/', auth, async (req, res) => {
             ]
         });
         res.json(categories);
-    } catch (err) {
-        res.status(500).send('Server Error');
-    }
+    } catch (err) { res.status(500).send('Server Error'); }
 });
 
 router.post('/', auth, async (req, res) => {
     const { name, type, color } = req.body;
     try {
         const newCat = new Category({
-            name,
-            type,
-            color,
+            name, type, color,
             isDefault: false,
             user: req.user.id
         });
         await newCat.save();
         res.json(newCat);
-    } catch (err) {
-        res.status(500).send('Server Error');
-    }
+    } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// Delete Category
+// UPDATE Category (Name/Color)
+router.put('/:id', auth, async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) return res.status(404).json({ msg: 'Not found' });
+        if (category.isDefault) return res.status(400).json({ msg: 'Cannot edit default' });
+        if (category.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Not authorized' });
+
+        // If name changes, we should update transactions too, or else the link breaks
+        // Currently transactions store 'category' as STRING. So we MUST update them.
+        if (req.body.name && req.body.name !== category.name) {
+            await Transaction.updateMany(
+                { user: req.user.id, category: category.name },
+                { category: req.body.name }
+            );
+        }
+
+        if (req.body.name) category.name = req.body.name;
+        if (req.body.color) category.color = req.body.color;
+
+        await category.save();
+        res.json(category);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
 router.delete('/:id', auth, async (req, res) => {
     try {
         const category = await Category.findById(req.params.id);
@@ -55,14 +73,10 @@ router.delete('/:id', auth, async (req, res) => {
         if (category.isDefault) return res.status(400).json({ msg: 'Cannot delete default category' });
         if (category.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Not authorized' });
 
-        // Move transactions to "Other"
         await Transaction.updateMany(
             { user: req.user.id, category: category.name },
             { category: 'Other' }
         );
-
-        // Also update by ID if logic changes to ID based, but currently using Name string
-        // If we switched to ID based, this would be { category: category._id }
 
         await category.deleteOne();
         res.json({ msg: 'Category deleted' });

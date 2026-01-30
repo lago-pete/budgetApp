@@ -11,18 +11,55 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
     const [date, setDate] = useState(initialData?.date ? initialData.date.substring(0, 10) : new Date().toISOString().substring(0, 10));
     const [file, setFile] = useState(null);
 
+    // Template State
+    const [templates, setTemplates] = useState([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState('');
+
     useEffect(() => {
-        // Fetch categories
-        axios.get('http://localhost:5000/api/categories')
-            .then(res => {
-                setCategories(res.data);
-                if (!selectedCategory && res.data.length > 0) {
-                    const firstMatch = res.data.find(c => c.type === type);
-                    if (firstMatch) setSelectedCategory(firstMatch.name);
-                }
-            })
+        // Fetch categories and templates
+        Promise.all([
+            axios.get('http://localhost:5000/api/categories'),
+            axios.get('http://localhost:5000/api/users/templates')
+        ]).then(([catRes, tempRes]) => {
+            setCategories(catRes.data);
+            setTemplates(tempRes.data);
+
+            // Initial category selection if adding new
+            if (!initialData && !selectedCategory && catRes.data.length > 0) {
+                const firstMatch = catRes.data.find(c => c.type === type);
+                if (firstMatch) setSelectedCategory(firstMatch.name);
+            }
+        })
             .catch(err => console.error(err));
-    }, []); // Run once on mount
+    }, []);
+
+    const handleTemplateSelect = (e) => {
+        const tId = e.target.value;
+        setSelectedTemplateId(tId);
+        if (!tId) return;
+
+        const temp = templates.find(t => t._id === tId);
+        if (temp) {
+            setTitle(temp.title);
+            setAmount(temp.amount);
+            setType(temp.type);
+            setSelectedCategory(temp.category);
+            // Note: we don't save dates in templates usually, but could.
+        }
+    };
+
+    const saveAsTemplate = async () => {
+        const name = prompt("Enter a name for this preset (e.g. 'Gym Membership'):", title);
+        if (!name) return;
+        try {
+            const res = await axios.post('http://localhost:5000/api/users/templates', {
+                name, title, amount, type, category: selectedCategory
+            });
+            setTemplates(res.data);
+            alert("Preset saved!");
+        } catch (err) { alert("Failed to save preset"); }
+    };
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -36,10 +73,7 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 proofUrl = uploadRes.data.filePath;
-            } catch (err) {
-                console.error("Upload failed", err);
-                return;
-            }
+            } catch (err) { return; }
         }
 
         const payload = {
@@ -54,10 +88,8 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
 
         try {
             if (initialData) {
-                // Edit Mode
                 await axios.put(`http://localhost:5000/api/transactions/${initialData._id}`, payload);
             } else {
-                // Add Mode
                 await axios.post('http://localhost:5000/api/transactions', payload);
             }
             onSubmitSuccess();
@@ -80,6 +112,18 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
                     <button className="close-modal" onClick={onClose}><i className="fa-solid fa-xmark"></i></button>
                 </div>
                 <div className="modal-body">
+
+                    {/* Template Selector (Only on Add) */}
+                    {!initialData && (
+                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '5px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <i className="fa-solid fa-bolt" style={{ color: 'var(--accent-secondary)' }}></i>
+                            <select value={selectedTemplateId} onChange={handleTemplateSelect} style={{ flex: 1, background: 'transparent', border: 'none', color: 'white' }}>
+                                <option value="">Quick Fill from Preset...</option>
+                                {templates.map(t => <option key={t._id} value={t._id}>{t.name} - ${t.amount}</option>)}
+                            </select>
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
                             <label>Type</label>
@@ -87,7 +131,7 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
                                 <input
                                     type="radio" id="type-expense" name="type" value="expense"
                                     checked={type === 'expense'} onChange={() => { setType('expense'); setSelectedCategory(''); }}
-                                    disabled={!!initialData} // Lock type on edit provided simple logic
+                                    disabled={!!initialData}
                                 />
                                 <label htmlFor="type-expense">Expense</label>
 
@@ -131,14 +175,17 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
                         </div>
 
                         <div className="form-group">
-                            <label>Proof / Receipt (Image)</label>
+                            <label>Proof / Receipt</label>
                             <input type="file" onChange={e => setFile(e.target.files[0])} accept="image/*" />
                         </div>
 
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                             <button type="submit" className="btn-primary full-width">{initialData ? 'Update' : 'Save'}</button>
-                            {initialData && (
+
+                            {initialData ? (
                                 <button type="button" onClick={handleDelete} className="btn-danger" style={{ background: 'var(--danger)', color: 'white', border: 'none', borderRadius: '5px', width: '100px' }}>Delete</button>
+                            ) : (
+                                <button type="button" onClick={saveAsTemplate} className="btn-secondary" title="Save as Preset" style={{ width: '50px' }}><i className="fa-solid fa-floppy-disk"></i></button>
                             )}
                         </div>
                     </form>

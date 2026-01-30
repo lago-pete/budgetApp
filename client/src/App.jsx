@@ -10,6 +10,7 @@ import Challenges from './components/Challenges';
 import Profile from './components/Profile';
 import CategoriesPage from './components/CategoriesPage';
 import TransactionModal from './components/TransactionModal';
+import ManageCategoriesModal from './components/ManageCategoriesModal';
 import NotificationsDropdown from './components/NotificationsDropdown';
 
 // Protected Route Wrapper
@@ -22,8 +23,9 @@ const PrivateRoute = () => {
 function Layout() {
     const { user } = useContext(AuthContext);
     const [activeView, setActiveView] = React.useState('dashboard');
-    const [showModal, setShowModal] = React.useState(false);
-    const [editTransactionData, setEditTransactionData] = React.useState(null); // For edit mode
+    const [showModal, setShowModal] = React.useState(false); // Transaction Modal
+    const [showCategoryModal, setShowCategoryModal] = React.useState(false); // New Cat Modal
+    const [editTransactionData, setEditTransactionData] = React.useState(null);
 
     const [refreshKey, setRefreshKey] = React.useState(0);
     const triggerRefresh = () => setRefreshKey(k => k + 1);
@@ -48,11 +50,16 @@ function Layout() {
                     <div className="actions">
                         <NotificationsDropdown />
 
-                        {activeView === 'dashboard' && (
+                        {/* Dynamic Button */}
+                        {activeView === 'categories' ? (
+                            <button className="btn-secondary" onClick={() => setShowCategoryModal(true)}>
+                                <i className="fa-solid fa-pen-to-square"></i> Edit Categories
+                            </button>
+                        ) : activeView === 'dashboard' ? (
                             <button className="btn-primary" onClick={handleOpenAddModal}>
                                 <i className="fa-solid fa-plus"></i> Add New
                             </button>
-                        )}
+                        ) : null}
                     </div>
                 </header>
 
@@ -66,7 +73,12 @@ function Layout() {
                     {activeView === 'social' && <SocialHub />}
                     {activeView === 'challenges' && <Challenges />}
                     {activeView === 'profile' && <Profile user={user} />}
-                    {activeView === 'categories' && <CategoriesPage onEditTransaction={handleEditTransaction} />}
+                    {activeView === 'categories' && (
+                        <CategoriesPage
+                            key={refreshKey} // Refresh if modal updates
+                            onEditTransaction={handleEditTransaction}
+                        />
+                    )}
                 </div>
             </main>
 
@@ -75,6 +87,12 @@ function Layout() {
                     initialData={editTransactionData}
                     onClose={() => setShowModal(false)}
                     onSubmitSuccess={() => { setShowModal(false); triggerRefresh(); }}
+                />
+            )}
+
+            {showCategoryModal && (
+                <ManageCategoriesModal
+                    onClose={() => { setShowCategoryModal(false); triggerRefresh(); }}
                 />
             )}
         </div>

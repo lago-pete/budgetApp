@@ -1,50 +1,99 @@
 import React, { useState, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
 function LoginPage() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [formData, setFormData] = useState({ identifier: '', password: '' });
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e) => {
+    const { identifier, password } = formData;
+
+    const onChange = (e) =>
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const onSubmit = async (e) => {
         e.preventDefault();
         try {
-            await login(email, password); // Email state var now holds identifier
+            setLoading(true);
+            await login(identifier, password);
             navigate('/');
         } catch (err) {
-            alert(err.response?.data?.msg || "Login failed");
+            setError(err.response?.data?.msg || 'Login failed');
+            setLoading(false);
+        }
+    };
+
+    const handleDemoLogin = async () => {
+        try {
+            setLoading(true);
+            const res = await axios.post('http://localhost:5000/api/auth/demo');
+            localStorage.setItem('token', res.data.token);
+            // Force reload or re-fetch context. Ideally context has a 'loadUser' but for now a reload works or passing token to login if modified.
+            // Actually AuthContext.login does an API call. We manual token set here, so we should really use a helper or just force reload.
+            // Let's manually trigger the verify in context if possible, or easiest: full reload.
+            window.location.href = '/';
+        } catch (err) {
+            setLoading(false);
+            setError("Demo login failed");
         }
     };
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100%' }}>
-            <div className="glass-panel" style={{ width: '400px', padding: '2rem' }}>
-                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                    <div className="logo-icon" style={{ margin: '0 auto 1rem' }}><i className="fa-solid fa-bolt"></i></div>
-                    <h2>Welcome Back</h2>
-                </div>
-                <form onSubmit={handleSubmit}>
+        <div className="auth-container slide-in">
+            <div className="auth-card glass-panel">
+                <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>
+                    <i className="fa-solid fa-wallet" style={{ marginRight: '10px', color: 'var(--accent-primary)' }}></i>
+                    WealthFlow
+                </h2>
+                <h3 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.2rem' }}>Sign In</h3>
+
+                {error && <div className="alert-danger">{error}</div>}
+
+                <form onSubmit={onSubmit}>
                     <div className="form-group">
-                        <label>Username or Email</label>
+                        <label>Email or Username</label>
                         <input
                             type="text"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            placeholder="Enter username or email"
+                            name="identifier"
+                            value={identifier}
+                            onChange={onChange}
                             required
+                            placeholder="user@example.com"
                         />
                     </div>
                     <div className="form-group">
                         <label>Password</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+                        <input
+                            type="password"
+                            name="password"
+                            value={password}
+                            onChange={onChange}
+                            required
+                            placeholder="••••••"
+                        />
                     </div>
-                    <button type="submit" className="btn-primary full-width">Login</button>
+                    <button type="submit" className="btn-primary full-width" disabled={loading}>
+                        {loading ? 'Signing in...' : 'Login'}
+                    </button>
                 </form>
-                <div style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>
-                    Don't have an account? <Link to="/register" style={{ color: 'var(--primary)' }}>Sign Up</Link>
+
+                <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
+                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <span style={{ padding: '0 10px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>OR</span>
+                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
                 </div>
+
+                <button onClick={handleDemoLogin} className="btn-secondary full-width" disabled={loading} style={{ background: 'linear-gradient(45deg, #FF9966, #FF5E62)', border: 'none', color: 'white', fontWeight: 'bold' }}>
+                    <i className="fa-solid fa-rocket" style={{ marginRight: '8px' }}></i> Try Demo Account
+                </button>
+
+                <p className="auth-footer">
+                    Don't have an account? <Link to="/register">Register</Link>
+                </p>
             </div>
         </div>
     );

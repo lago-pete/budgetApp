@@ -15,6 +15,7 @@ const auth = (req, res, next) => {
     }
 };
 
+// ... existing routes (search, bio, friends) ...
 // Search Users
 router.get('/', auth, async (req, res) => {
     try {
@@ -23,12 +24,9 @@ router.get('/', auth, async (req, res) => {
             _id: { $ne: req.user.id, $nin: currentUser.friends }
         }).select('name avatar xp level isPrivate username');
         res.json(users);
-    } catch (err) {
-        res.status(500).send('Server Error');
-    }
+    } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// Update Bio
 router.put('/bio', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -38,15 +36,11 @@ router.put('/bio', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// Send Friend Request
 router.post('/request/:id', auth, async (req, res) => {
     try {
         const targetUser = await User.findById(req.params.id);
         if (!targetUser) return res.status(404).json({ msg: 'User not found' });
-
-        // Check if already friends or requested
-        const existingReq = targetUser.friendRequests.find(r => r.from.toString() === req.user.id);
-        if (existingReq) return res.status(400).json({ msg: 'Request already sent' });
+        if (targetUser.friendRequests.find(r => r.from.toString() === req.user.id)) return res.status(400).json({ msg: 'Request already sent' });
         if (targetUser.friends.includes(req.user.id)) return res.status(400).json({ msg: 'Already friends' });
 
         targetUser.friendRequests.push({ from: req.user.id });
@@ -55,75 +49,61 @@ router.post('/request/:id', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// Accept Friend Request
 router.post('/request/accept/:requestId', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         const reqItem = user.friendRequests.id(req.params.requestId);
-
         if (!reqItem) return res.status(404).json({ msg: 'Request not found' });
-
         const newFriendId = reqItem.from;
 
-        // Add to friends list
         user.friends.push(newFriendId);
-        // Remove request
-        reqItem.deleteOne(); // updated syntax for subdoc removal
-
+        reqItem.deleteOne();
         await user.save();
 
-        // Reciprocal
         const otherUser = await User.findById(newFriendId);
         if (!otherUser.friends.includes(user.id)) {
             otherUser.friends.push(user.id);
             await otherUser.save();
         }
 
-        // Return updated user
         const updatedUser = await User.findById(req.user.id)
             .populate('friends', 'name avatar xp level')
             .populate('friendRequests.from', 'name avatar');
-
         res.json(updatedUser);
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
+    } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// Reject Friend Request
 router.post('/request/reject/:requestId', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         user.friendRequests.id(req.params.requestId).deleteOne();
         await user.save();
-
         const updatedUser = await User.findById(req.user.id).populate('friendRequests.from', 'name avatar');
         res.json(updatedUser);
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
-
-// Toggle Privacy
 router.put('/privacy', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         user.isPrivate = !user.isPrivate;
         await user.save();
         res.json({ isPrivate: user.isPrivate });
-    } catch (err) {
-        res.status(500).send('Server Error');
-    }
+    } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// Remove Friend (keep existing logic)
+router.get('/friends', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).populate('friends', 'name avatar xp level isPrivate');
+        res.json(user.friends);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
 router.delete('/friends/:friendId', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         user.friends = user.friends.filter(id => id.toString() !== req.params.friendId);
         await user.save();
-
         const friend = await User.findById(req.params.friendId);
         if (friend) {
             friend.friends = friend.friends.filter(id => id.toString() !== req.user.id);
@@ -133,27 +113,51 @@ router.delete('/friends/:friendId', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// Get User Profile
+
+// --- TEMPLATE ROUTES ---
+router.get('/templates', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        res.json(user.transactionTemplates || []);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
+router.post('/templates', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        user.transactionTemplates.push(req.body);
+        await user.save();
+        res.json(user.transactionTemplates);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
+router.delete('/templates/:id', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        user.transactionTemplates.id(req.params.id).deleteOne();
+        await user.save();
+        res.json(user.transactionTemplates);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+// -----------------------
+
 router.get('/:id', auth, async (req, res) => {
     try {
         const user = await User.findById(req.params.id).select('-password');
         if (!user) return res.status(404).json({ msg: 'Profile not found' });
-
         const currentUser = await User.findById(req.user.id);
         const isFriend = currentUser.friends.includes(req.params.id);
 
-        // Privacy Logic
         if (req.params.id !== req.user.id && user.isPrivate && !isFriend) {
             return res.json({
                 _id: user._id,
                 name: user.name,
                 avatar: user.avatar,
                 isPrivate: true,
-                bio: user.bio, // Allow bio to be seen? Maybe. Let's say yes for now.
+                bio: user.bio,
                 msg: "This profile is private."
             });
         }
-        // If friend/public, return full info
         res.json(user);
     } catch (err) { res.status(500).send('Server Error'); }
 });
