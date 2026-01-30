@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, CartesianGrid, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 
 function CategoriesPage({ onEditTransaction }) {
     const [categories, setCategories] = useState([]);
@@ -12,8 +12,6 @@ function CategoriesPage({ onEditTransaction }) {
     const [tempSelectedCats, setTempSelectedCats] = useState([]);
 
     // Advanced Date Filter State
-    // Mode: 'all', 'lastWeek', 'lastMonth', 'year', 'custom'
-    // Custom now stores precise start/end for calculation
     const [dateFilter, setDateFilter] = useState({ mode: 'all', values: [], custom: { start: '', end: '' } });
     const [showCustomDateModal, setShowCustomDateModal] = useState(false);
 
@@ -34,143 +32,228 @@ function CategoriesPage({ onEditTransaction }) {
     const activeCategories = selectedCategories.length > 0 ? selectedCategories : categoriesToShow;
 
     // --- Helpers ---
-    const getWeekStart = (date) => {
+    const getWeekDates = (date) => {
         const d = new Date(date);
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is sunday
-        return new Date(d.setDate(diff));
-    };
-
-    const formatDateKey = (date, granularity) => {
-        const d = new Date(date);
-        if (granularity === 'year') return String(d.getFullYear());
-        if (granularity === 'month') return d.toISOString().substring(0, 7);
-        if (granularity === 'week') {
-            // Use Start of Week
-            const start = getWeekStart(d);
-            return start.toISOString().substring(0, 10); // "2023-05-01"
-        }
-        return d.toISOString().substring(0, 10); // "2023-05-01" (Day)
+        const day = d.getDay(); // 0 is Sunday
+        const diff = d.getDate() - day; // Adjust to Sunday
+        const start = new Date(d.setDate(diff));
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
     };
 
     const determineGranularity = (start, end) => {
-        if (!start || !end) return 'month'; // Default backup
+        if (!start || !end) return 'month';
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         if (diffDays > 365) return 'year';
-        if (diffDays > 31) return 'month'; // > 1 Month (approx)
-        if (diffDays > 14) return 'week';  // > 2 Weeks -> Week
-        return 'day'; // <= 2 Weeks -> Day
+        if (diffDays > 32) return 'month';
+        if (diffDays > 14) return 'week';
+        return 'day';
+    };
+
+    const pad = (n) => String(n).padStart(2, '0');
+
+    // Manual Local Date Key Generator (YYYY-MM-DD or YYYY-MM-01)
+    const toLocalKey = (date, granularity) => {
+        const d = new Date(date);
+        const y = d.getFullYear();
+        if (granularity === 'year') return `${y}-01-01`;
+
+        const m = pad(d.getMonth() + 1);
+        if (granularity === 'month') return `${y}-${m}-01`;
+
+        const day = pad(d.getDate());
+        return `${y}-${m}-${day}`;
+    };
+
+    const formatDateLabel = (date, granularity, globalStart, globalEnd) => {
+        const d = new Date(date);
+
+        if (granularity === 'year') return String(d.getFullYear());
+        if (granularity === 'month') return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        if (granularity === 'day') return d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+
+        if (granularity === 'week') {
+            let start = new Date(d);
+            let end = new Date(d);
+            end.setDate(d.getDate() + 6);
+
+            if (globalStart && start < globalStart) start = new Date(globalStart);
+            if (globalEnd && end > globalEnd) end = new Date(globalEnd);
+
+            const sStr = start.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+            const eStr = end.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+            return `${sStr}-${eStr}`;
+        }
+        return toLocalKey(d, 'day');
+    };
+
+    const generateTimeBuckets = (start, end, granularity) => {
+        const buckets = {};
+        let current = new Date(start);
+        // Construct fresh to avoid mutation issues
+        current = new Date(current.getFullYear(), current.getMonth(), current.getDate());
+
+        // Align logic
+        if (granularity === 'year') current.setMonth(0, 1);
+        else if (granularity === 'month') current.setDate(1);
+        else if (granularity === 'week') {
+            const day = current.getDay();
+            current.setDate(current.getDate() - day);
+        }
+        current.setHours(0, 0, 0, 0);
+
+        const endLimit = new Date(end);
+        endLimit.setHours(23, 59, 59, 999);
+
+        let loops = 0;
+        while (current <= endLimit && loops < 1000) {
+            loops++;
+            let bucketEnd = new Date(current);
+            if (granularity === 'year') bucketEnd.setFullYear(current.getFullYear() + 1);
+            else if (granularity === 'month') bucketEnd.setMonth(current.getMonth() + 1);
+            else if (granularity === 'week') bucketEnd.setDate(current.getDate() + 7);
+            else bucketEnd.setDate(current.getDate() + 1);
+            bucketEnd = new Date(bucketEnd.getTime() - 1);
+
+            if (current <= endLimit && bucketEnd >= start) {
+                const key = toLocalKey(current, granularity === 'week' ? 'day' : granularity);
+
+                buckets[key] = {
+                    key,
+                    label: formatDateLabel(current, granularity, start, end),
+                    granularity,
+                    total: 0
+                };
+                activeCategories.forEach(c => buckets[key][c.name] = 0);
+            }
+
+            if (granularity === 'year') current.setFullYear(current.getFullYear() + 1);
+            else if (granularity === 'month') current.setMonth(current.getMonth() + 1);
+            else if (granularity === 'week') current.setDate(current.getDate() + 7);
+            else current.setDate(current.getDate() + 1);
+        }
+        return buckets;
+    };
+
+    // Custom Tick Component
+    const CustomTick = (props) => {
+        const { x, y, payload, buckets } = props;
+        const bucket = buckets ? Object.values(buckets).find(b => b.key === payload.value) : null;
+        const label = bucket ? bucket.label : payload.value;
+        const total = bucket ? bucket.total : 0;
+
+        return (
+            <g transform={`translate(${x},${y})`}>
+                <text x={0} y={0} dy={16} textAnchor="middle" fill="var(--text-muted)" fontSize={10}>
+                    {label}
+                </text>
+                <text x={0} y={0} dy={32} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="bold">
+                    {total > 0 ? `$${total.toFixed(0)}` : ''}
+                </text>
+            </g>
+        );
     };
 
 
-    // --- 1. Data Prep & Histogram Logic ---
+    // --- 1. Filter Logic ---
     let startDate = new Date();
     let endDate = new Date();
     let granularity = 'month';
+    const now = new Date(); // Local now
 
-    // Calculate Date Range
     if (dateFilter.mode === 'all') {
-        startDate = new Date(new Date().setFullYear(new Date().getFullYear() - 1)); // Last 12 months as default "all" for chart? Or literally all?
-        // User original 'Default' was Last 12 Months. Let's keep that.
+        endDate = now;
+        // "Last 12 Months" = Current + 11 Previous = 12 total
+        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
         granularity = 'month';
-    } else if (dateFilter.mode === 'lastWeek') {
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setDate(endDate.getDate() - 7);
-        granularity = determineGranularity(startDate, endDate); // Should be 'day'
-    } else if (dateFilter.mode === 'lastMonth') {
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setMonth(endDate.getMonth() - 1);
-        granularity = determineGranularity(startDate, endDate); // Should be 'week' or 'day'? 30 days > 14 -> 'week'
-    } else if (dateFilter.mode === 'year') {
-        startDate = new Date(`${dateFilter.values[0]}-01-01`);
-        endDate = new Date(`${dateFilter.values[0]}-12-31`);
+    } else if (dateFilter.mode === 'thisWeek') {
+        const w = getWeekDates(now);
+        startDate = w.start;
+        endDate = w.end;
+        granularity = 'day';
+    } else if (dateFilter.mode === 'thisMonth') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         endDate.setHours(23, 59, 59, 999);
+        granularity = determineGranularity(startDate, endDate);
+    } else if (dateFilter.mode === 'year') {
+        const y = parseInt(dateFilter.values[0]);
+        startDate = new Date(y, 0, 1);
+        endDate = new Date(y, 11, 31, 23, 59, 59, 999);
         granularity = 'month';
     } else if (dateFilter.mode === 'custom') {
-        startDate = dateFilter.custom.start ? new Date(dateFilter.custom.start) : new Date('2000-01-01');
-        endDate = dateFilter.custom.end ? new Date(dateFilter.custom.end) : new Date();
-        endDate.setHours(23, 59, 59, 999);
+        if (dateFilter.custom.start) {
+            const [y, m, d] = dateFilter.custom.start.split('-').map(Number);
+            startDate = new Date(y, m - 1, d);
+        } else {
+            startDate = new Date(2000, 0, 1);
+        }
+        if (dateFilter.custom.end) {
+            const [y, m, d] = dateFilter.custom.end.split('-').map(Number);
+            endDate = new Date(y, m - 1, d);
+            endDate.setHours(23, 59, 59, 999);
+        } else {
+            endDate = new Date();
+        }
         granularity = determineGranularity(startDate, endDate);
     }
 
-    // Generate Buckets
-    const buckets = {};
+    const buckets = generateTimeBuckets(startDate, endDate, granularity);
 
-    // Iterate strictly through transactions or build empty buckets?
-    // Building empty buckets for days/weeks is complex. 
-    // Just binning transactions and sorting is robust for sparse data, 
-    // but for "Chart" looks better with gaps filled.
-    // For now, let's Bin Transactions first, then we can Fill Gaps if needed. 
-    // Actually, filtering first is safer.
-
-    // Filter Transactions by Range FIRST
     const rangeTransactions = allTransactions.filter(t => {
         if (t.type !== viewType) return false;
-        const d = new Date(t.date);
-        // Rough filter, refine later
-        if (dateFilter.mode !== 'all') {
-            if (d < startDate || d > endDate) return false;
-        }
+        const [y, m, d] = t.date.substring(0, 10).split('-').map(Number);
+        const dateObj = new Date(y, m - 1, d); // Strict Local
 
-        // Also Category Filter (Pre-filter for performance)
-        if (selectedCategories.length > 0) {
-            if (!selectedCategories.some(c => c.name === t.category)) return false;
-        }
+        if (dateObj < startDate || dateObj > endDate) return false;
+        if (selectedCategories.length > 0 && !selectedCategories.some(c => c.name === t.category)) return false;
         return true;
     });
 
     rangeTransactions.forEach(t => {
-        const key = formatDateKey(t.date, granularity);
-        if (!buckets[key]) {
-            buckets[key] = { key, total: 0 };
-            activeCategories.forEach(c => buckets[key][c.name] = 0);
+        // Logic for key matching must mirror generateTimeBuckets
+        const [y, m, d] = t.date.substring(0, 10).split('-').map(Number);
+        const dateObj = new Date(y, m - 1, d);
+
+        // Determine Align Key
+        let key = '';
+        if (granularity === 'year') key = `${y}-01-01`;
+        else if (granularity === 'month') key = `${y}-${pad(m)}-01`;
+        else if (granularity === 'day') key = `${y}-${pad(m)}-${pad(d)}`;
+        else if (granularity === 'week') {
+            // Find week start
+            const dayOfWeek = dateObj.getDay();
+            const diff = dateObj.getDate() - dayOfWeek;
+            const wStart = new Date(dateObj);
+            wStart.setDate(diff);
+            key = toLocalKey(wStart, 'day');
         }
 
-        // Find category exact match
-        // If categories are filtered, we only add if match (already filtered above)
-        // If "All Cats", we add it. 
-        // Note: 'activeCategories' is effectively user selection OR all.
-
-        // Safety check if category exists in our 'active' list (might be 'Others' or old cat)
-        if (activeCategories.some(c => c.name === t.category)) {
-            buckets[key][t.category] = (buckets[key][t.category] || 0) + t.amount;
-            buckets[key].total += t.amount;
+        if (buckets[key]) {
+            if (activeCategories.some(c => c.name === t.category)) {
+                buckets[key][t.category] = (buckets[key][t.category] || 0) + t.amount;
+                buckets[key].total += t.amount;
+            }
         }
     });
 
     const histogramData = Object.values(buckets).sort((a, b) => a.key.localeCompare(b.key));
-    const availableYears = [...new Set(allTransactions.map(t => t.date.substring(0, 4)))].sort().reverse();
+    const availableYears = [...new Set(allTransactions.map(t => new Date(t.date).getFullYear()))].sort().reverse();
 
-
-    // --- 2. Pie Data Logic ---
-    // Uses rangeTransactions directly
+    // --- 2. Pie Data ---
     let pieData = [];
     if (selectedCategories.length === 1) {
-        // Breakdown by Time (Granularity based on range?)
-        // User said "one month or less shows weeks..." for Histogram.
-        // Pie should PROBABLY match Histogram granularity?
-        // Or just standard Monthly? User earlier request: "pi chart shows months".
-        // Let's match histogram granularity for consistency!
-        const timeMap = {};
-        rangeTransactions.forEach(t => {
-            const k = formatDateKey(t.date, granularity);
-            if (!timeMap[k]) timeMap[k] = 0;
-            timeMap[k] += t.amount;
-        });
-        // Sort keys
-        const keys = Object.keys(timeMap).sort();
-        // Generate colors
-        const colors = ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#277da1', '#5D2E8C', '#F25F5C', '#70C1B3', '#247BA0'];
-
-        pieData = keys.map((k, i) => ({
-            name: k, value: timeMap[k], color: colors[i % colors.length]
-        }));
+        pieData = histogramData.map((b, i) => ({
+            name: b.label,
+            value: b[selectedCategories[0].name] || 0,
+            color: ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#277da1', '#5D2E8C', '#F25F5C', '#70C1B3', '#247BA0'][i % 12]
+        })).filter(d => d.value > 0);
     } else {
-        // Breakdown by Category
         const catMap = {};
         rangeTransactions.forEach(t => {
             if (!catMap[t.category]) catMap[t.category] = 0;
@@ -183,17 +266,7 @@ function CategoriesPage({ onEditTransaction }) {
     }
     const pieCenterTotal = pieData.reduce((sum, d) => sum + d.value, 0);
 
-
     // --- Handlers ---
-    const handleBarClick = (data) => {
-        // What does clicking do dynamically?
-        // Maybe nothing for now, or drill down?
-        // Logic for multi-select months was specific to "Months" view.
-        // For "Weeks" or "Days", selecting might be overkill.
-        // Let's disable interactive filtering on the histogram for the complex views for now,
-        // as combining "Select Week 1 and Day 5" is confusing.
-    };
-
     const applyCustomDate = (e) => {
         e.preventDefault();
         const s = e.target.start.value;
@@ -203,7 +276,6 @@ function CategoriesPage({ onEditTransaction }) {
         setShowCustomDateModal(false);
     };
 
-    // Category Selection
     const toggleSingleCategory = (cat) => {
         if (selectedCategories.length === 1 && selectedCategories[0]._id === cat._id) setSelectedCategories([]);
         else setSelectedCategories([cat]);
@@ -214,6 +286,24 @@ function CategoriesPage({ onEditTransaction }) {
         else setTempSelectedCats([...tempSelectedCats, cat]);
     };
     const applyCustomCategories = () => { setSelectedCategories(tempSelectedCats); setShowCategoryModal(false); };
+
+    const DateInput = ({ label, name }) => {
+        const [val, setVal] = useState('');
+        const pickerRef = useRef(null);
+        const handleChange = (e) => setVal(e.target.value);
+        const handlePicker = (e) => setVal(e.target.value);
+        return (
+            <div className="form-group">
+                <label>{label}</label>
+                <div style={{ position: 'relative' }}>
+                    <input type="text" name={name} value={val} onChange={handleChange} placeholder="YYYY-MM-DD" style={{ width: '100%', paddingRight: '40px' }} />
+                    <i className="fa-regular fa-calendar" onClick={() => pickerRef.current.showPicker()} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: 'var(--primary)' }}></i>
+                    <input type="date" ref={pickerRef} onChange={handlePicker} style={{ position: 'absolute', right: 0, top: 0, opacity: 0, width: '0px', height: '0px' }} />
+                </div>
+            </div>
+        );
+    };
+
 
     return (
         <div className="view active-view slide-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '20px' }}>
@@ -256,9 +346,9 @@ function CategoriesPage({ onEditTransaction }) {
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}><i className="fa-regular fa-calendar" style={{ marginRight: '5px' }}></i> Dates:</span>
 
-                    <button onClick={() => setDateFilter({ mode: 'all', values: [], custom: {} })} style={{ background: dateFilter.mode === 'all' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', padding: '4px 12px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}>All</button>
-                    <button onClick={() => setDateFilter({ mode: 'lastWeek', values: [], custom: {} })} style={{ background: dateFilter.mode === 'lastWeek' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', padding: '4px 12px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}>Last Week</button>
-                    <button onClick={() => setDateFilter({ mode: 'lastMonth', values: [], custom: {} })} style={{ background: dateFilter.mode === 'lastMonth' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', padding: '4px 12px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}>Last Month</button>
+                    <button onClick={() => setDateFilter({ mode: 'all', values: [], custom: {} })} style={{ background: dateFilter.mode === 'all' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', padding: '4px 12px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}>All (Year)</button>
+                    <button onClick={() => setDateFilter({ mode: 'thisWeek', values: [], custom: {} })} style={{ background: dateFilter.mode === 'thisWeek' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', padding: '4px 12px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}>This Week</button>
+                    <button onClick={() => setDateFilter({ mode: 'thisMonth', values: [], custom: {} })} style={{ background: dateFilter.mode === 'thisMonth' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', padding: '4px 12px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}>This Month</button>
 
                     {availableYears.length > 0 && <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.8rem' }}>|</span>}
                     {availableYears.map(yr => (
@@ -273,38 +363,49 @@ function CategoriesPage({ onEditTransaction }) {
             </div>
 
             {/* ROW 2: Histogram */}
-            <section className="glass-panel" style={{ padding: '20px', position: 'relative', zIndex: 5 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <section className="glass-panel" style={{ padding: '20px 20px 10px 20px', position: 'relative', zIndex: 5 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0px' }}>
                     <h4 style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>
                         {selectedCategories.length === 1 ? `${selectedCategories[0].name} Trend` : 'Spending Trend'}
                         <span style={{ marginLeft: '5px', fontSize: '0.8rem', opacity: 0.7 }}>
-                            {granularity === 'day' && '(Daily)'}
-                            {granularity === 'week' && '(Weekly)'}
-                            {granularity === 'month' && '(Monthly)'}
-                            {granularity === 'year' && '(Annual)'}
+                            {dateFilter.mode === 'all' && '(Last 12 Mo)'}
+                            {dateFilter.mode === 'thisWeek' && '(Sun - Sat)'}
+                            {dateFilter.mode === 'thisMonth' && '(Weekly)'}
+                            {dateFilter.mode === 'year' && '(Monthly)'}
+                            {dateFilter.mode === 'custom' && `(${granularity})`}
                         </span>
                     </h4>
                 </div>
 
-                <div style={{ height: '200px', width: '100%' }}>
+                {/* Height increased for bottom labels */}
+                <div style={{ height: '240px', width: '100%' }}>
                     <ResponsiveContainer>
-                        <BarChart data={histogramData} onClick={handleBarClick}>
+                        <BarChart data={histogramData} margin={{ top: 10, right: 0, left: 0, bottom: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
-                            <XAxis dataKey="key" tick={{ fill: 'var(--text-muted)', fontSize: '0.7rem' }} tickFormatter={v => v.substring(5)} />
+
+                            {/* Y hide */}
+                            <YAxis hide domain={[0, 'auto']} />
+
+                            {/* Custom Tick XAxis */}
+                            <XAxis
+                                dataKey="key"
+                                interval={0}
+                                tick={<CustomTick buckets={buckets} />}
+                                height={60}
+                                axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                                tickLine={false}
+                            />
+
                             <Tooltip wrapperStyle={{ zIndex: 1000 }} contentStyle={{ background: '#1e1e24', border: '1px solid #333' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
 
+                            {/* Bars (No Top Labels) */}
                             {selectedCategories.length === 1 ? (
-                                <Bar dataKey={selectedCategories[0].name} fill={selectedCategories[0].color}>
-                                    <LabelList dataKey={selectedCategories[0].name} position="top" fill="white" fontSize={10} formatter={v => v > 0 ? `$${v}` : ''} />
-                                </Bar>
+                                <Bar dataKey={selectedCategories[0].name} fill={selectedCategories[0].color} />
                             ) : (
                                 <>
                                     {activeCategories.map(cat => (
                                         <Bar key={cat._id} dataKey={cat.name} stackId="a" fill={cat.color} />
                                     ))}
-                                    <Bar dataKey="total" stackId="a" fill="transparent" isAnimationActive={false}>
-                                        <LabelList dataKey="total" position="top" fill="white" fontSize={10} formatter={v => v > 0 ? `$${v}` : ''} />
-                                    </Bar>
                                 </>
                             )}
                         </BarChart>
@@ -365,23 +466,8 @@ function CategoriesPage({ onEditTransaction }) {
                         <div className="modal-header"><h3>Select Range</h3><button className="close-modal" onClick={() => { setShowCustomDateModal(false); }}><i className="fa-solid fa-xmark"></i></button></div>
                         <form onSubmit={applyCustomDate} className="modal-body">
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '15px', textAlign: 'center' }}>Select Start, End, or Both</div>
-
-                            <div className="form-group">
-                                <label>Start Date (Min)</label>
-                                <div style={{ position: 'relative' }}>
-                                    <input type="date" name="start" style={{ width: '100%', paddingRight: '40px', appearance: 'none' }} />
-                                    <i className="fa-regular fa-calendar" style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--primary)' }}></i>
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label>End Date (Max)</label>
-                                <div style={{ position: 'relative' }}>
-                                    <input type="date" name="end" style={{ width: '100%', paddingRight: '40px', appearance: 'none' }} />
-                                    <i className="fa-regular fa-calendar" style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--primary)' }}></i>
-                                </div>
-                            </div>
-
+                            <DateInput label="Start Date (Min)" name="start" />
+                            <DateInput label="End Date (Max)" name="end" />
                             <button type="submit" className="btn-primary full-width">Apply Filter</button>
                         </form>
                     </div>
@@ -396,11 +482,7 @@ function CategoriesPage({ onEditTransaction }) {
                         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
                             {categoriesToShow.map(cat => (
                                 <div key={cat._id} onClick={() => toggleTempCategory(cat)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', cursor: 'pointer',
-                                        background: tempSelectedCats.find(c => c._id === cat._id) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                                        border: '1px solid rgba(255,255,255,0.05)'
-                                    }}>
+                                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', cursor: 'pointer', background: tempSelectedCats.find(c => c._id === cat._id) ? 'rgba(255,255,255,0.1)' : 'transparent', border: '1px solid rgba(255,255,255,0.05)' }}>
                                     <div style={{ width: '15px', height: '15px', borderRadius: '3px', border: `1px solid ${cat.color}`, background: tempSelectedCats.find(c => c._id === cat._id) ? cat.color : 'transparent' }}></div>
                                     <span>{cat.name}</span>
                                 </div>
