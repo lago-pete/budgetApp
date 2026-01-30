@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WealthFlow | Social Budgeting</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar glass-panel">
+            <div class="logo">
+                <div class="logo-icon"><i class="fa-solid fa-bolt"></i></div>
+                <h1>WealthFlow</h1>
+            </div>
+            
+            <ul class="nav-links">
+                <li class="active" data-view="dashboard">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li data-view="social">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Social Hub</span>
+                    <span class="badg small-badge">3</span>
+                </li>
+                <li data-view="challenges">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span>Challenges</span>
+                </li>
+                <li data-view="profile">
+                    <i class="fa-solid fa-user-astronaut"></i>
+                    <span>Profile</span>
+                </li>
+            </ul>
+
+            <div class="user-mini-profile">
+                <div class="avatar-circle">
+                    <img src="https://ui-avatars.com/api/?name=Alex+M&background=random" alt="User" id="mini-avatar">
+                </div>
+                <div class="user-info">
+                    <span class="name">Alex M.</span>
+                    <span class="level">Lvl 5 Saver</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-bar">
+                <h2 id="page-title">Dashboard</h2>
+                <div class="actions">
+                    <button class="btn-icon"><i class="fa-solid fa-bell"></i></button>
+                    <button class="btn-primary" id="btn-add-transaction">
+                        <i class="fa-solid fa-plus"></i> Add New
+                    </button>
+                </div>
+            </header>
+
+            <!-- Views Container -->
+            <div id="views-container">
+                
+                <!-- DASHBOARD VIEW -->
+                <div id="view-dashboard" class="view active-view slide-in">
+                    <!-- Zero Based Budget Hero -->
+                    <section class="budget-hero glass-panel">
+                        <div class="budget-ring-container">
+                            <div class="budget-ring" style="--p: 75; --c: var(--accent-primary);">
+                                <div class="ring-content">
+                                    <span class="label">Left to Budget</span>
+                                    <span class="amount" id="left-to-budget">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="budget-stats">
+                            <div class="stat-item">
+                                <span class="label">Total Income</span>
+                                <span class="value income" id="total-income">$0.00</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Total Expenses</span>
+                                <span class="value expense" id="total-expenses">$0.00</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="dashboard-grid">
+                        <!-- Recent Activity -->
+                        <section class="recent-transactions glass-panel">
+                            <h3><i class="fa-solid fa-receipt"></i> Recent Activity</h3>
+                            <ul class="transaction-list" id="transaction-list">
+                                <!-- Populated by JS -->
+                            </ul>
+                        </section>
+
+                        <!-- Quick Categories/Goals -->
+                        <section class="goals-preview glass-panel">
+                            <h3><i class="fa-solid fa-bullseye"></i> Active Goals</h3>
+                            <div class="goals-list" id="goals-list">
+                                <!-- Populated by JS -->
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- SOCIAL VIEW -->
+                <div id="view-social" class="view">
+                    <div class="social-grid">
+                        <section class="leaderboard glass-panel">
+                            <h3><i class="fa-solid fa-crown"></i> Monthly Leaderboard</h3>
+                            <ul class="leaderboard-list" id="leaderboard-list">
+                                <!-- Populated by JS -->
+                            </ul>
+                        </section>
+                        <section class="activity-feed glass-panel">
+                            <h3>Friend Activity</h3>
+                            <div class="feed-container" id="activity-feed">
+                                <!-- Populated by JS -->
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- CHALLENGES VIEW -->
+                <div id="view-challenges" class="view">
+                    <div class="challenges-grid">
+                        <section class="active-challenges glass-panel">
+                            <h3>Your Active Challenges</h3>
+                            <div class="challenge-cards" id="active-challenges-list">
+                                <!-- Populated by JS -->
+                            </div>
+                        </section>
+                        <section class="explore-challenges glass-panel">
+                            <h3>Explore Challenges</h3>
+                            <div class="challenge-cards" id="explore-challenges-list">
+                                <!-- Populated by JS -->
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- PROFILE VIEW -->
+                <div id="view-profile" class="view">
+                    <div class="profile-header glass-panel">
+                        <div class="profile-main">
+                            <div class="profile-avatar-lg">
+                                <img src="https://ui-avatars.com/api/?name=Alex+M&size=128" alt="Profile">
+                            </div>
+                            <div class="profile-details">
+                                <h2 class="profile-name">Alex M.</h2>
+                                <p class="profile-bio">Saving for a house • Coffee enthusiast</p>
+                                <div class="level-bar-container">
+                                    <span class="level-badge">Lvl 5</span>
+                                    <div class="progress-bar"><div class="fill" style="width: 60%"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <section class="badges-section glass-panel">
+                        <h3><i class="fa-solid fa-medal"></i> Achievements</h3>
+                        <div class="badges-grid" id="badges-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </section>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Adding Transaction -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal glass-panel bounce-in">
+            <div class="modal-header">
+                <h3>Add New Transaction</h3>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-transaction-form">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <div class="toggle-switch">
+                            <input type="radio" id="type-expense" name="type" value="expense" checked>
+                            <label for="type-expense">Expense</label>
+                            <input type="radio" id="type-income" name="type" value="income">
+                            <label for="type-income">Income</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" id="amount" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="category">
+                            <option value="food">Food & Dining</option>
+                            <option value="transport">Transportation</option>
+                            <option value="housing">Housing</option>
+                            <option value="entertainment">Entertainment</option>
+                            <option value="salary">Salary</option>
+                            <option value="freelance">Freelance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proof (Optional for Challenge)</label>
+                        <div class="file-upload-mock">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Upload Receipt/Statement</span>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary full-width">Save Transaction</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
