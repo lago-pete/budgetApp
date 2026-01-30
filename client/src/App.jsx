@@ -66,7 +66,7 @@ function Layout() {
                     {activeView === 'social' && <SocialHub />}
                     {activeView === 'challenges' && <Challenges />}
                     {activeView === 'profile' && <Profile user={user} />}
-                    {activeView === 'categories' && <CategoriesPage />}
+                    {activeView === 'categories' && <CategoriesPage onEditTransaction={handleEditTransaction} />}
                 </div>
             </main>
 
