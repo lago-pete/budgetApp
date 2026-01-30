@@ -1,42 +1,62 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-function Challenges({ challenges }) {
-    const activeChallenges = challenges.filter(c => c.isActive);
-    const exploreChallenges = challenges.filter(c => !c.isActive); // Assuming !isActive implies available to explore/join for this logic or mock
+function Challenges() {
+    const [activeChallenges, setActiveChallenges] = useState([]);
+    const [exploreChallenges, setExploreChallenges] = useState([]);
+
+    useEffect(() => {
+        axios.get('http://localhost:5000/api/challenges')
+            .then(res => {
+                const all = res.data;
+                // Split into active/explore mock logic
+                // In real app, check user.challenges array
+                setActiveChallenges(all.filter(c => c.isActive).slice(0, 3));
+                setExploreChallenges(all);
+            })
+            .catch(err => console.error(err));
+    }, []);
+
+    const joinChallenge = (id) => {
+        alert("Joined challenge! (Mock action)");
+        // Ideally API call to add to user
+    };
 
     return (
         <div className="view active-view slide-in">
+            <h3 style={{ marginBottom: '1rem' }}>Active Challenges</h3>
             <div className="challenges-grid">
-                <section className="active-challenges glass-panel">
-                    <h3>Your Active Challenges</h3>
-                    <div className="challenge-cards">
-                        {activeChallenges.map(c => (
-                            <div key={c._id || c.title} className="badge-item" style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: '10px' }}>
-                                <div style={{ textAlign: 'left' }}>
-                                    <div style={{ fontWeight: '600' }}>{c.title}</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{c.participantsCount} Participants</div>
-                                </div>
-                                <div style={{ background: 'var(--primary)', padding: '5px 10px', borderRadius: '8px', fontSize: '0.8rem' }}>Active</div>
-                            </div>
-                        ))}
+                {activeChallenges.map(c => (
+                    <div key={c._id} className="challenge-card glass-panel" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
+                        <div className="c-header">
+                            <i className="fa-solid fa-fire c-icon"></i>
+                            <h4>{c.title}</h4>
+                        </div>
+                        <p>{c.description}</p>
+                        <div className="progress-bar">
+                            <div className="fill" style={{ width: '45%' }}></div>
+                        </div>
+                        <span className="small-text">45% Complete</span>
                     </div>
-                </section>
-                <section className="explore-challenges glass-panel">
-                    <h3>Explore Challenges</h3>
-                    <div className="challenge-cards">
-                        {exploreChallenges.length === 0 ? (
-                            <div style={{ color: 'var(--text-muted)' }}>No new challenges available.</div>
-                        ) : exploreChallenges.map(c => (
-                            <div key={c._id || c.title} className="badge-item" style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: '10px', opacity: '0.7' }}>
-                                <div style={{ textAlign: 'left' }}>
-                                    <div style={{ fontWeight: '600' }}>{c.title}</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{c.participantsCount} Participants</div>
-                                </div>
-                                <button style={{ background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer' }}>Join</button>
-                            </div>
-                        ))}
+                ))}
+            </div>
+
+            <h3 style={{ margin: '2rem 0 1rem' }}>Explore Challenges</h3>
+            <div className="challenges-grid">
+                {exploreChallenges.map(c => (
+                    <div key={c._id} className="challenge-card glass-panel">
+                        <div className="c-header">
+                            <i className="fa-solid fa-trophy c-icon" style={{ color: 'var(--accent-secondary)' }}></i>
+                            <h4>{c.title}</h4>
+                        </div>
+                        <p>{c.description}</p>
+                        <div className="c-footer">
+                            <span><i className="fa-solid fa-users"></i> {c.participantsCount}</span>
+                            <span className="reward">{c.reward}</span>
+                        </div>
+                        <button className="btn-primary full-width" style={{ marginTop: '1rem' }} onClick={() => joinChallenge(c._id)}>Join Challenge</button>
                     </div>
-                </section>
+                ))}
             </div>
         </div>
     );

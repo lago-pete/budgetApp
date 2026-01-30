@@ -23,10 +23,20 @@ function Layout() {
     const { user } = useContext(AuthContext);
     const [activeView, setActiveView] = React.useState('dashboard');
     const [showModal, setShowModal] = React.useState(false);
+    const [editTransactionData, setEditTransactionData] = React.useState(null); // For edit mode
 
-    // Quick refresh trigger
     const [refreshKey, setRefreshKey] = React.useState(0);
     const triggerRefresh = () => setRefreshKey(k => k + 1);
+
+    const handleEditTransaction = (txData) => {
+        setEditTransactionData(txData);
+        setShowModal(true);
+    };
+
+    const handleOpenAddModal = () => {
+        setEditTransactionData(null);
+        setShowModal(true);
+    };
 
     return (
         <div className="app-container">
@@ -39,7 +49,7 @@ function Layout() {
                         <NotificationsDropdown />
 
                         {activeView === 'dashboard' && (
-                            <button className="btn-primary" onClick={() => setShowModal(true)}>
+                            <button className="btn-primary" onClick={handleOpenAddModal}>
                                 <i className="fa-solid fa-plus"></i> Add New
                             </button>
                         )}
@@ -47,7 +57,12 @@ function Layout() {
                 </header>
 
                 <div id="views-container">
-                    {activeView === 'dashboard' && <Dashboard key={refreshKey} />}
+                    {activeView === 'dashboard' && (
+                        <Dashboard
+                            key={refreshKey}
+                            onEditTransaction={handleEditTransaction}
+                        />
+                    )}
                     {activeView === 'social' && <SocialHub />}
                     {activeView === 'challenges' && <Challenges />}
                     {activeView === 'profile' && <Profile user={user} />}
@@ -57,6 +72,7 @@ function Layout() {
 
             {showModal && (
                 <TransactionModal
+                    initialData={editTransactionData}
                     onClose={() => setShowModal(false)}
                     onSubmitSuccess={() => { setShowModal(false); triggerRefresh(); }}
                 />

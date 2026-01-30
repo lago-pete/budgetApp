@@ -1,94 +1,161 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
-// Middleware to verify token (simplified inline)
 const auth = (req, res, next) => {
     const token = req.header('x-auth-token');
-    if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
+    if (!token) return res.status(401).json({ msg: 'No token' });
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = decoded.user;
         next();
     } catch (err) {
-        res.status(401).json({ msg: 'Token is not valid' });
+        res.status(401).json({ msg: 'Invalid token' });
     }
 };
-const jwt = require('jsonwebtoken');
 
-
-// Get all users (for searching friends)
+// Search Users
 router.get('/', auth, async (req, res) => {
     try {
-        // Exclude current user and already friends
         const currentUser = await User.findById(req.user.id);
         const users = await User.find({
             _id: { $ne: req.user.id, $nin: currentUser.friends }
-        }).select('name avatar xp');
+        }).select('name avatar xp level isPrivate username');
         res.json(users);
     } catch (err) {
-        console.error(err.message);
         res.status(500).send('Server Error');
     }
 });
 
-// Add Friend
-router.post('/friends/:friendId', auth, async (req, res) => {
+// Update Bio
+router.put('/bio', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
-        const friend = await User.findById(req.params.friendId);
+        user.bio = req.body.bio;
+        await user.save();
+        res.json({ bio: user.bio });
+    } catch (err) { res.status(500).send('Server Error'); }
+});
 
-        if (!friend) return res.status(404).json({ msg: 'User not found' });
+// Send Friend Request
+router.post('/request/:id', auth, async (req, res) => {
+    try {
+        const targetUser = await User.findById(req.params.id);
+        if (!targetUser) return res.status(404).json({ msg: 'User not found' });
 
-        if (!user.friends.includes(req.params.friendId)) {
-            user.friends.push(req.params.friendId);
-            await user.save();
+        // Check if already friends or requested
+        const existingReq = targetUser.friendRequests.find(r => r.from.toString() === req.user.id);
+        if (existingReq) return res.status(400).json({ msg: 'Request already sent' });
+        if (targetUser.friends.includes(req.user.id)) return res.status(400).json({ msg: 'Already friends' });
+
+        targetUser.friendRequests.push({ from: req.user.id });
+        await targetUser.save();
+        res.json({ msg: 'Request sent' });
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// Accept Friend Request
+router.post('/request/accept/:requestId', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        const reqItem = user.friendRequests.id(req.params.requestId);
+
+        if (!reqItem) return res.status(404).json({ msg: 'Request not found' });
+
+        const newFriendId = reqItem.from;
+
+        // Add to friends list
+        user.friends.push(newFriendId);
+        // Remove request
+        reqItem.deleteOne(); // updated syntax for subdoc removal
+
+        await user.save();
+
+        // Reciprocal
+        const otherUser = await User.findById(newFriendId);
+        if (!otherUser.friends.includes(user.id)) {
+            otherUser.friends.push(user.id);
+            await otherUser.save();
         }
 
-        // Reciprocal (optional, but good for social)
-        if (!friend.friends.includes(req.user.id)) {
-            friend.friends.push(req.user.id);
-            await friend.save();
-        }
+        // Return updated user
+        const updatedUser = await User.findById(req.user.id)
+            .populate('friends', 'name avatar xp level')
+            .populate('friendRequests.from', 'name avatar');
 
-        res.json(user.friends);
+        res.json(updatedUser);
+
     } catch (err) {
-        console.error(err.message);
+        console.error(err);
         res.status(500).send('Server Error');
     }
 });
 
-// Remove Friend
+// Reject Friend Request
+router.post('/request/reject/:requestId', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        user.friendRequests.id(req.params.requestId).deleteOne();
+        await user.save();
+
+        const updatedUser = await User.findById(req.user.id).populate('friendRequests.from', 'name avatar');
+        res.json(updatedUser);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
+
+// Toggle Privacy
+router.put('/privacy', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        user.isPrivate = !user.isPrivate;
+        await user.save();
+        res.json({ isPrivate: user.isPrivate });
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+});
+
+// Remove Friend (keep existing logic)
 router.delete('/friends/:friendId', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         user.friends = user.friends.filter(id => id.toString() !== req.params.friendId);
         await user.save();
 
-        // Remove reciprocal
         const friend = await User.findById(req.params.friendId);
         if (friend) {
             friend.friends = friend.friends.filter(id => id.toString() !== req.user.id);
             await friend.save();
         }
-
         res.json(user.friends);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+    } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// Get User Profile by ID (Public view)
+// Get User Profile
 router.get('/:id', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.params.id).select('-password -friends'); // Don't show their friends list per se, privacy
+        const user = await User.findById(req.params.id).select('-password');
         if (!user) return res.status(404).json({ msg: 'Profile not found' });
+
+        const currentUser = await User.findById(req.user.id);
+        const isFriend = currentUser.friends.includes(req.params.id);
+
+        // Privacy Logic
+        if (req.params.id !== req.user.id && user.isPrivate && !isFriend) {
+            return res.json({
+                _id: user._id,
+                name: user.name,
+                avatar: user.avatar,
+                isPrivate: true,
+                bio: user.bio, // Allow bio to be seen? Maybe. Let's say yes for now.
+                msg: "This profile is private."
+            });
+        }
+        // If friend/public, return full info
         res.json(user);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+    } catch (err) { res.status(500).send('Server Error'); }
 });
 
 module.exports = router;

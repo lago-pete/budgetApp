@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-function Dashboard() {
+function Dashboard({ onEditTransaction }) {
     const [transactions, setTransactions] = useState([]);
 
     useEffect(() => {
@@ -55,11 +55,11 @@ function Dashboard() {
             <div className="dashboard-grid">
                 <section className="recent-transactions glass-panel">
                     <h3><i className="fa-solid fa-receipt"></i> Recent Activity</h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Click a transaction to edit details</p>
                     <ul className="transaction-list">
                         {transactions.map(t => (
-                            <li key={t._id} className="transaction-item">
+                            <li key={t._id} className="transaction-item" onClick={() => onEditTransaction && onEditTransaction(t)} style={{ cursor: 'pointer' }}>
                                 <div className="t-info">
-                                    {/* Show Image if proofUrl exists */}
                                     {t.proofUrl ? (
                                         <div className="t-icon" style={{ backgroundImage: `url(http://localhost:5000${t.proofUrl})`, backgroundSize: 'cover' }}></div>
                                     ) : (
@@ -68,6 +68,7 @@ function Dashboard() {
                                     <div className="t-details">
                                         <h4>{t.title}</h4>
                                         <span>{new Date(t.date).toLocaleDateString()} • {t.category}</span>
+                                        {t.notes && <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.notes}</span>}
                                     </div>
                                 </div>
                                 <div className={`t-amount ${t.type}`}>
@@ -82,7 +83,7 @@ function Dashboard() {
                     <h3><i className="fa-solid fa-bullseye"></i> Active Goals</h3>
                     <div className="goals-list">
                         <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            <i className="fa-solid fa-lock"></i> Goals Feature (Coming Soon)
+                            <i className="fa-solid fa-lock"></i> Goals tracked in Profile
                         </div>
                     </div>
                 </section>

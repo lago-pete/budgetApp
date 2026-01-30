@@ -20,41 +20,11 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/uploads', require('./routes/uploads'));
+app.use('/api/transactions', require('./routes/transactions'));
 
-// Other Routes (Inline for now or refactor later)
-const Transaction = require('./models/Transaction');
+// Other Routes (Inline)
 const Challenge = require('./models/Challenge');
 
-// Transaction Routes (Updated with User Auth)
-const jwt = require('jsonwebtoken');
-const auth = (req, res, next) => {
-    const token = req.header('x-auth-token');
-    if (!token) return res.status(401).json({ msg: 'No token' });
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.user;
-        next();
-    } catch (err) {
-        res.status(401).json({ msg: 'Invalid token' });
-    }
-};
-
-app.get('/api/transactions', auth, async (req, res) => {
-    const transactions = await Transaction.find({ user: req.user.id }).sort({ date: -1 });
-    res.json(transactions);
-});
-
-app.post('/api/transactions', auth, async (req, res) => {
-    const { title, amount, type, category, proofUrl } = req.body;
-    const newTx = new Transaction({
-        title, amount, type, category, proofUrl,
-        user: req.user.id
-    });
-    await newTx.save();
-    res.json(newTx);
-});
-
-// Public Challenge Routes
 app.get('/api/challenges', async (req, res) => {
     const challenges = await Challenge.find();
     res.json(challenges);
@@ -68,23 +38,46 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/wealthflow'
 })
     .then(() => {
         console.log('MongoDB Connected');
-        seedDefaultCategories();
+        seedData();
     })
     .catch(err => console.log(err));
 
-async function seedDefaultCategories() {
-    const count = await Category.countDocuments({ isDefault: true });
-    if (count === 0) {
+async function seedData() {
+    // Categories
+    const catCount = await Category.countDocuments({ isDefault: true });
+    if (catCount === 0) {
         const defaults = [
             { name: 'Food & Dining', type: 'expense', color: '#ff6b6b', isDefault: true },
             { name: 'Transportation', type: 'expense', color: '#feca57', isDefault: true },
             { name: 'Housing', type: 'expense', color: '#48dbfb', isDefault: true },
             { name: 'Entertainment', type: 'expense', color: '#ff9ff3', isDefault: true },
+            { name: 'Health', type: 'expense', color: '#10ac84', isDefault: true },
             { name: 'Salary', type: 'income', color: '#1dd1a1', isDefault: true },
             { name: 'Freelance', type: 'income', color: '#5f27cd', isDefault: true },
+            { name: 'Gifts', type: 'income', color: '#ff9ff3', isDefault: true },
         ];
         await Category.insertMany(defaults);
         console.log('Default Categories seeded');
+    }
+
+    // Challenges - 10+ Seeded
+    const challCount = await Challenge.countDocuments();
+    if (challCount === 0) {
+        const challenges = [
+            { title: 'No Eating Out Week', description: "Cook all meals at home for 7 days.", participantsCount: 142, reward: '500 XP', isActive: true },
+            { title: 'Save $500 this Month', description: "Put aside $500 into savings.", participantsCount: 320, reward: 'Saver Badge', isActive: true },
+            { title: 'Zero Spend Weekend', description: "Spend $0 on Saturday and Sunday.", participantsCount: 89, reward: '200 XP', isActive: true },
+            { title: 'Debt Destroyer', description: "Pay off $200 of debt extra this month.", participantsCount: 45, reward: 'Freedom Badge', isActive: true },
+            { title: 'Coffeeless Week', description: "Skip the coffee shop run for a week.", participantsCount: 210, reward: '100 XP', isActive: true },
+            { title: 'Subscription Cull', description: "Cancel one unused subscription.", participantsCount: 56, reward: 'Smart Badge', isActive: true },
+            { title: 'Grocery Run Under $50', description: "Keep grocery bill under $50.", participantsCount: 112, reward: '150 XP', isActive: false },
+            { title: '30 Day Savings Streak', description: "Save at least $5 every day.", participantsCount: 78, reward: 'Streak Badge', isActive: false },
+            { title: 'Sell One Item', description: "Sell something you don't need.", participantsCount: 34, reward: '100 XP', isActive: false },
+            { title: 'Invest $100', description: "Put $100 into an index fund.", participantsCount: 220, reward: 'Investor Badge', isActive: false },
+            { title: 'Emergency Fund Starter', description: "Reach $1000 in emergency fund.", participantsCount: 400, reward: 'Safety Badge', isActive: false },
+        ];
+        await Challenge.insertMany(challenges);
+        console.log('Challenges seeded');
     }
 }
 

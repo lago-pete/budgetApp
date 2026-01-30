@@ -11,7 +11,7 @@ function LoginPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await login(email, password);
+            await login(email, password); // Email state var now holds identifier
             navigate('/');
         } catch (err) {
             alert(err.response?.data?.msg || "Login failed");
@@ -27,8 +27,14 @@ function LoginPage() {
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>Email</label>
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+                        <label>Username or Email</label>
+                        <input
+                            type="text"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            placeholder="Enter username or email"
+                            required
+                        />
                     </div>
                     <div className="form-group">
                         <label>Password</label>
