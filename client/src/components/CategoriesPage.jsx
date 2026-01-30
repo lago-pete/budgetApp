@@ -146,15 +146,28 @@ function CategoriesPage({ onEditTransaction }) {
         const bucket = buckets ? Object.values(buckets).find(b => b.key === payload.value) : null;
         const label = bucket ? bucket.label : payload.value;
         const total = bucket ? bucket.total : 0;
+        const inc = bucket ? bucket.incomeTotal || 0 : 0;
+        const exp = bucket ? bucket.expenseTotal || 0 : 0;
 
         return (
             <g transform={`translate(${x},${y})`}>
                 <text x={0} y={0} dy={16} textAnchor="middle" fill="var(--text-muted)" fontSize={10}>
                     {label}
                 </text>
-                <text x={0} y={0} dy={32} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="bold">
-                    {total > 0 ? `$${total.toFixed(0)}` : ''}
-                </text>
+                {viewType === 'combined' ? (
+                    <>
+                        <text x={0} y={0} dy={30} textAnchor="middle" fill="var(--success)" fontSize={10} fontWeight="bold">
+                            {inc > 0 ? `+$${inc.toFixed(0)}` : ''}
+                        </text>
+                        <text x={0} y={0} dy={42} textAnchor="middle" fill="var(--danger)" fontSize={10} fontWeight="bold">
+                            {exp > 0 ? `-$${exp.toFixed(0)}` : ''}
+                        </text>
+                    </>
+                ) : (
+                    <text x={0} y={0} dy={32} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="bold">
+                        {total > 0 ? `$${total.toFixed(0)}` : ''}
+                    </text>
+                )}
             </g>
         );
     };
@@ -234,6 +247,8 @@ function CategoriesPage({ onEditTransaction }) {
             if (activeCategories.some(c => c.name === t.category)) {
                 buckets[key][t.category] = (buckets[key][t.category] || 0) + t.amount;
                 buckets[key].total += t.amount;
+                if (t.type === 'income') buckets[key].incomeTotal = (buckets[key].incomeTotal || 0) + t.amount;
+                else buckets[key].expenseTotal = (buckets[key].expenseTotal || 0) + t.amount;
             }
         }
     });
@@ -300,13 +315,21 @@ function CategoriesPage({ onEditTransaction }) {
     };
 
     const sortedTransactions = [...rangeTransactions].sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+        let valA = a[sortConfig.key];
+        let valB = b[sortConfig.key];
+
+        if (sortConfig.key === 'amount') {
+            valA = a.type === 'income' ? a.amount : -a.amount;
+            valB = b.type === 'income' ? b.amount : -b.amount;
+        }
+
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
     });
 
     const visibleTransactions = sortedTransactions.slice(0, displayLimit);
-    const totalActivitySum = sortedTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const totalActivitySum = sortedTransactions.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
 
     const handleScroll = (e) => {
         const { scrollTop, clientHeight, scrollHeight } = e.target;
@@ -431,10 +454,10 @@ function CategoriesPage({ onEditTransaction }) {
                 <div className="toggle-switch" style={{ width: '350px' }}>
                     <input type="radio" id="view-expense" name="viewType" value="expense" checked={viewType === 'expense'} onChange={() => { setViewType('expense'); setSelectedCategories([]); }} />
                     <label htmlFor="view-expense">Expenses</label>
-                    <input type="radio" id="view-income" name="viewType" value="income" checked={viewType === 'income'} onChange={() => { setViewType('income'); setSelectedCategories([]); }} />
-                    <label htmlFor="view-income">Income</label>
                     <input type="radio" id="view-combined" name="viewType" value="combined" checked={viewType === 'combined'} onChange={() => { setViewType('combined'); setSelectedCategories([]); }} />
                     <label htmlFor="view-combined">Combined</label>
+                    <input type="radio" id="view-income" name="viewType" value="income" checked={viewType === 'income'} onChange={() => { setViewType('income'); setSelectedCategories([]); }} />
+                    <label htmlFor="view-income">Income</label>
                 </div>
             </div>
 
