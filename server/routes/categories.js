@@ -81,7 +81,7 @@ router.delete('/:id', auth, async (req, res) => {
 
         await Transaction.updateMany(
             { user: req.user.id, category: category.name },
-            { category: 'Other' }
+            { category: 'Uncategorized' }
         );
 
         await category.deleteOne();

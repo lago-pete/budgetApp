@@ -32,7 +32,7 @@ function CategoriesPage({ onEditTransaction }) {
         } catch (err) { console.error(err); }
     };
 
-    const categoriesToShow = categories.filter(c => c.type === viewType);
+    const categoriesToShow = viewType === 'combined' ? categories : categories.filter(c => c.type === viewType);
     const activeCategories = selectedCategories.length > 0 ? selectedCategories : categoriesToShow;
 
     // --- Helpers ---
@@ -205,7 +205,7 @@ function CategoriesPage({ onEditTransaction }) {
     const buckets = generateTimeBuckets(startDate, endDate, granularity);
 
     const rangeTransactions = allTransactions.filter(t => {
-        if (t.type !== viewType) return false;
+        if (viewType !== 'combined' && t.type !== viewType) return false;
         const [y, m, d] = t.date.substring(0, 10).split('-').map(Number);
         const dateObj = new Date(y, m - 1, d);
 
@@ -242,24 +242,49 @@ function CategoriesPage({ onEditTransaction }) {
     const availableYears = [...new Set(allTransactions.map(t => new Date(t.date).getFullYear()))].sort().reverse();
 
     let pieData = [];
-    if (selectedCategories.length === 1) {
-        pieData = histogramData.map((b, i) => ({
-            name: b.label,
-            value: b[selectedCategories[0].name] || 0,
-            color: ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#277da1', '#5D2E8C', '#F25F5C', '#70C1B3', '#247BA0'][i % 12]
-        })).filter(d => d.value > 0);
-    } else {
-        const catMap = {};
+    let incomePieData = [];
+    let expensePieData = [];
+
+    if (viewType === 'combined') {
+        const incomeMap = {};
+        const expenseMap = {};
         rangeTransactions.forEach(t => {
-            if (!catMap[t.category]) catMap[t.category] = 0;
-            catMap[t.category] += t.amount;
+            if (t.type === 'income') {
+                incomeMap[t.category] = (incomeMap[t.category] || 0) + t.amount;
+            } else {
+                expenseMap[t.category] = (expenseMap[t.category] || 0) + t.amount;
+            }
         });
-        pieData = Object.entries(catMap).map(([name, val]) => {
+        incomePieData = Object.entries(incomeMap).map(([name, val]) => {
             const cat = categories.find(c => c.name === name);
             return { name, value: val, color: cat ? cat.color : '#888' };
         });
+        expensePieData = Object.entries(expenseMap).map(([name, val]) => {
+            const cat = categories.find(c => c.name === name);
+            return { name, value: val, color: cat ? cat.color : '#888' };
+        });
+    } else {
+        if (selectedCategories.length === 1) {
+            pieData = histogramData.map((b, i) => ({
+                name: b.label,
+                value: b[selectedCategories[0].name] || 0,
+                color: ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#277da1', '#5D2E8C', '#F25F5C', '#70C1B3', '#247BA0'][i % 12]
+            })).filter(d => d.value > 0);
+        } else {
+            const catMap = {};
+            rangeTransactions.forEach(t => {
+                if (!catMap[t.category]) catMap[t.category] = 0;
+                catMap[t.category] += t.amount;
+            });
+            pieData = Object.entries(catMap).map(([name, val]) => {
+                const cat = categories.find(c => c.name === name);
+                return { name, value: val, color: cat ? cat.color : '#888' };
+            });
+        }
     }
     const pieCenterTotal = pieData.reduce((sum, d) => sum + d.value, 0);
+    const incomeTotal = incomePieData.reduce((sum, d) => sum + d.value, 0);
+    const expenseTotal = expensePieData.reduce((sum, d) => sum + d.value, 0);
 
     // --- ACTIVITY LOGIC (Sort, Paginate, Total) ---
     useEffect(() => {
@@ -403,11 +428,13 @@ function CategoriesPage({ onEditTransaction }) {
 
             {/* ROW 1... */}
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div className="toggle-switch" style={{ width: '250px' }}>
+                <div className="toggle-switch" style={{ width: '350px' }}>
                     <input type="radio" id="view-expense" name="viewType" value="expense" checked={viewType === 'expense'} onChange={() => { setViewType('expense'); setSelectedCategories([]); }} />
                     <label htmlFor="view-expense">Expenses</label>
                     <input type="radio" id="view-income" name="viewType" value="income" checked={viewType === 'income'} onChange={() => { setViewType('income'); setSelectedCategories([]); }} />
                     <label htmlFor="view-income">Income</label>
+                    <input type="radio" id="view-combined" name="viewType" value="combined" checked={viewType === 'combined'} onChange={() => { setViewType('combined'); setSelectedCategories([]); }} />
+                    <label htmlFor="view-combined">Combined</label>
                 </div>
             </div>
 
@@ -495,7 +522,12 @@ function CategoriesPage({ onEditTransaction }) {
                             />
                             <Tooltip wrapperStyle={{ zIndex: 1000 }} contentStyle={{ background: '#1e1e24', border: '1px solid #333' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
 
-                            {selectedCategories.length === 1 ? (
+                            {viewType === 'combined' ? (
+                                <>
+                                    {activeCategories.filter(c => c.type === 'income').map(cat => (<Bar key={cat._id} dataKey={cat.name} stackId="income" fill={cat.color} />))}
+                                    {activeCategories.filter(c => c.type === 'expense').map(cat => (<Bar key={cat._id} dataKey={cat.name} stackId="expense" fill={cat.color} />))}
+                                </>
+                            ) : selectedCategories.length === 1 ? (
                                 <Bar dataKey={selectedCategories[0].name} fill={selectedCategories[0].color} />
                             ) : (
                                 <>
@@ -510,26 +542,61 @@ function CategoriesPage({ onEditTransaction }) {
             {/* ROW 3: Pie Chart */}
             <section className="glass-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', flexDirection: 'column', zIndex: 1 }}>
                 <h4 style={{ marginBottom: '10px', fontSize: '1rem', color: 'var(--text-muted)' }} dangerouslySetInnerHTML={{ __html: getContextTitle('Breakdown') }}></h4>
-                <div style={{ width: '100%', maxWidth: '400px', height: '300px', position: 'relative' }}>
-                    {pieData.length > 0 ? (
+                <div style={{ width: '100%', maxWidth: '800px', display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                    {viewType === 'combined' ? (
                         <>
-                            {/* Z-Index Fix: Text BEHIND Chart */}
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', zIndex: 0 }}>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>${pieCenterTotal.toFixed(0)}</div>
+                            <div style={{ position: 'relative', width: '300px', height: '300px' }}>
+                                <h5 style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Income</h5>
+                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', zIndex: 0, marginTop: '10px' }}>
+                                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>${incomeTotal.toFixed(0)}</div>
+                                </div>
+                                <ResponsiveContainer>
+                                    <PieChart>
+                                        <Pie data={incomePieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={3} dataKey="value">
+                                            {incomePieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                                        </Pie>
+                                        <Tooltip formatter={(value) => `$${value.toFixed(2)}`} contentStyle={{ background: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '10px', zIndex: 1000 }} itemStyle={{ color: 'white' }} />
+                                    </PieChart>
+                                </ResponsiveContainer>
                             </div>
-
-                            <ResponsiveContainer style={{ zIndex: 1, position: 'relative' }}>
-                                <PieChart>
-                                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={3} dataKey="value">
-                                        {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
-                                    </Pie>
-                                    <Tooltip formatter={(value) => `$${value.toFixed(2)}`} contentStyle={{ background: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '10px', zIndex: 1000 }} itemStyle={{ color: 'white' }} />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <div style={{ position: 'relative', width: '300px', height: '300px' }}>
+                                <h5 style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Expenses</h5>
+                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', zIndex: 0, marginTop: '10px' }}>
+                                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>${expenseTotal.toFixed(0)}</div>
+                                </div>
+                                <ResponsiveContainer>
+                                    <PieChart>
+                                        <Pie data={expensePieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={3} dataKey="value">
+                                            {expensePieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                                        </Pie>
+                                        <Tooltip formatter={(value) => `$${value.toFixed(2)}`} contentStyle={{ background: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '10px', zIndex: 1000 }} itemStyle={{ color: 'white' }} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
                         </>
                     ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Data</div>
+                        <div style={{ width: '100%', maxWidth: '400px', height: '300px', position: 'relative' }}>
+                            {pieData.length > 0 ? (
+                                <>
+                                    {/* Z-Index Fix: Text BEHIND Chart */}
+                                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', zIndex: 0 }}>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>${pieCenterTotal.toFixed(0)}</div>
+                                    </div>
+
+                                    <ResponsiveContainer style={{ zIndex: 1, position: 'relative' }}>
+                                        <PieChart>
+                                            <Pie data={pieData} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={3} dataKey="value">
+                                                {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                                            </Pie>
+                                            <Tooltip formatter={(value) => `$${value.toFixed(2)}`} contentStyle={{ background: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '10px', zIndex: 1000 }} itemStyle={{ color: 'white' }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </>
+                            ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Data</div>
+                            )}
+                        </div>
                     )}
                 </div>
             </section>

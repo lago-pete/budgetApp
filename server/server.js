@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const User = require('./models/User');
 const Category = require('./models/Category');
+const Transaction = require('./models/Transaction');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -77,7 +78,15 @@ async function seedData() {
             { title: 'Emergency Fund Starter', description: "Reach $1000 in emergency fund.", participantsCount: 400, reward: 'Safety Badge', isActive: false },
         ];
         await Challenge.insertMany(challenges);
+        await Challenge.insertMany(challenges);
         console.log('Challenges seeded');
+    }
+
+    // Migration: Rename 'Other' to 'Uncategorized'
+    const otherCount = await Transaction.countDocuments({ category: 'Other' });
+    if (otherCount > 0) {
+        await Transaction.updateMany({ category: 'Other' }, { category: 'Uncategorized' });
+        console.log(`Migrated ${otherCount} transactions from 'Other' to 'Uncategorized'`);
     }
 }
 
