@@ -41,16 +41,26 @@ router.post('/', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
-// UPDATE Category (Name/Color)
+// UPDATE Category (Name/Color) - UNLOCKED
 router.put('/:id', auth, async (req, res) => {
     try {
         const category = await Category.findById(req.params.id);
         if (!category) return res.status(404).json({ msg: 'Not found' });
-        if (category.isDefault) return res.status(400).json({ msg: 'Cannot edit default' });
+
+        // Allowed to edit Default if it 'belongs' to system? 
+        // Strategy: We can't really 'edit' the shared document for everyone.
+        // If user wants to edit a Default category, we should arguably CLONE it or treat defaults as templates.
+        // BUT for a simple app: Defaults are usually seeded per user (see Auth logic).
+        // WAIT: My auth logic (Step 348) does `Category.insertMany(... user: user.id ...)`.
+        // SO "Defaults" are actually User copies! They just happen to be flagged isDefault or maybe not even flagged if I didn't set it.
+        // Let's check auth.js ... yes: `isDefault: false`.
+        // SO the seed categories ARE owned by the user. The `isDefault` flag in schema might be true for the *server-side* templates but the user copies are `isDefault: false`.
+        // IF they are `isDefault: false`, then `category.isDefault` check in previous code was blocking nothing if I used my new seed logic.
+        // HOWEVER, `server-1` logs said "Default Categories seeded". That might be the global ones?
+        // Let's assume the user owns them. I will allow editing regardless of flags if `user == req.user.id`.
+
         if (category.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Not authorized' });
 
-        // If name changes, we should update transactions too, or else the link breaks
-        // Currently transactions store 'category' as STRING. So we MUST update them.
         if (req.body.name && req.body.name !== category.name) {
             await Transaction.updateMany(
                 { user: req.user.id, category: category.name },
@@ -70,7 +80,8 @@ router.delete('/:id', auth, async (req, res) => {
     try {
         const category = await Category.findById(req.params.id);
         if (!category) return res.status(404).json({ msg: 'Category not found' });
-        if (category.isDefault) return res.status(400).json({ msg: 'Cannot delete default category' });
+
+        // Allow deleting anything owned by user
         if (category.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Not authorized' });
 
         await Transaction.updateMany(

@@ -3,14 +3,16 @@ import axios from 'axios';
 
 function Dashboard({ onEditTransaction }) {
     const [transactions, setTransactions] = useState([]);
-    const [limit, setLimit] = useState(5); // Initial limit
+    const [limit, setLimit] = useState(5);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function fetchData() {
             try {
                 const res = await axios.get('http://localhost:5000/api/transactions');
                 setTransactions(res.data);
-            } catch (err) { console.error(err); }
+                setLoading(false);
+            } catch (err) { console.error(err); setLoading(false); }
         }
         fetchData();
     }, []);
@@ -29,6 +31,10 @@ function Dashboard({ onEditTransaction }) {
     let ringColor = 'var(--accent-primary)';
     if (leftToBudget < 0) ringColor = 'var(--danger)';
     else if (percentage < 20) ringColor = 'var(--accent-secondary)';
+
+    const visibleTransactions = transactions.slice(0, limit);
+    // Show button if there are more transactions than currently visible
+    const showLoadMore = transactions.length > limit;
 
     return (
         <div className="view active-view slide-in">
@@ -57,7 +63,6 @@ function Dashboard({ onEditTransaction }) {
             <section className="recent-transactions glass-panel" style={{ marginTop: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <h3><i className="fa-solid fa-receipt"></i> Recent Activity</h3>
-                    <button onClick={() => setLimit(prev => prev + 10)} className="btn-secondary" style={{ fontSize: '0.8rem', padding: '5px 10px' }}>Load More</button>
                 </div>
 
                 <div className="transaction-table-header">
@@ -68,10 +73,9 @@ function Dashboard({ onEditTransaction }) {
                 </div>
 
                 <ul className="transaction-list horizontal-style">
-                    {transactions.slice(0, limit).map(t => (
+                    {visibleTransactions.map(t => (
                         <li key={t._id} className="transaction-item compact" onClick={() => onEditTransaction && onEditTransaction(t)} style={{ cursor: 'pointer' }}>
                             <div className="t-main">
-                                {/* Icon */}
                                 {t.proofUrl ? (
                                     <div className="t-icon small" style={{ backgroundImage: `url(http://localhost:5000${t.proofUrl})`, backgroundSize: 'cover' }}></div>
                                 ) : (
@@ -94,9 +98,17 @@ function Dashboard({ onEditTransaction }) {
                 </ul>
 
                 {transactions.length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No transactions yet. Add one!</div>}
+
+                {/* LOAD MORE BUTTON */}
+                {showLoadMore && (
+                    <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                        <button onClick={() => setLimit(prev => prev + 10)} className="btn-secondary" style={{ width: '200px', margin: '0 auto' }}>
+                            Load More
+                        </button>
+                    </div>
+                )}
             </section>
 
-            {/* CSS for grid table layout */}
             <style>{`
         .transaction-table-header {
             display: grid;

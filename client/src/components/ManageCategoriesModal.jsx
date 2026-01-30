@@ -4,11 +4,10 @@ import axios from 'axios';
 function ManageCategoriesModal({ onClose }) {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [editingId, setEditingId] = useState(null); // ID of category being edited
+    const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
     const [editColor, setEditColor] = useState('');
 
-    // New Category State
     const [newName, setNewName] = useState('');
     const [newType, setNewType] = useState('expense');
     const [newColor, setNewColor] = useState('#ff0000');
@@ -36,23 +35,15 @@ function ManageCategoriesModal({ onClose }) {
         } catch (err) { alert("Failed"); }
     };
 
-    // Currently we don't have a PUT route for Categories in implementation, 
-    // but let's assume one exists or we DELETE+CREATE. 
-    // Actually, let's implement the PUT on backend if not there, or just restrict to DELETE/CREATE for now to match strict plan.
-    // Wait, the User requested "Edited, customized in color". 
-    // I should add a PUT endpoint to backend too.
-    // For now, I'll mock the 'Update' by DELETE + CREATE if PUT is missing, but that invalidates transactions.
-    // I will add a PUT endpoint to categories route in next step to be safe.
-
     const handleUpdate = async (id) => {
-        // Temporary: this assumes a PUT route exists. I will add it.
         try {
             await axios.put(`http://localhost:5000/api/categories/${id}`, {
                 name: editName, color: editColor
             });
             setEditingId(null);
+            // Wait a bit or optimistic?
             fetchCategories();
-        } catch (err) { alert("Update failed - Route might be missing"); }
+        } catch (err) { alert("Update failed"); }
     };
 
     const handleDelete = async (id) => {
@@ -78,12 +69,11 @@ function ManageCategoriesModal({ onClose }) {
                 </div>
                 <div className="modal-body">
 
-                    {/* Create New */}
                     <form onSubmit={handleCreate} style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                         <h4>Add New</h4>
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name" required style={{ flex: 1 }} />
-                            <select value={newType} onChange={e => setNewType(e.target.value)} style={{ width: '100px' }}>
+                            <select value={newType} onChange={e => setNewType(e.target.value)} style={{ width: '100px', background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
                                 <option value="expense">Expense</option>
                                 <option value="income">Income</option>
                             </select>
@@ -92,7 +82,6 @@ function ManageCategoriesModal({ onClose }) {
                         </div>
                     </form>
 
-                    {/* List */}
                     <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                         {categories.map(cat => (
                             <div key={cat._id} className="transaction-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px' }}>
@@ -100,8 +89,8 @@ function ManageCategoriesModal({ onClose }) {
                                     <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
                                         <input value={editName} onChange={e => setEditName(e.target.value)} style={{ flex: 1 }} />
                                         <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} />
-                                        <button className="btn-success" onClick={() => handleUpdate(cat._id)}><i className="fa-solid fa-check"></i></button>
-                                        <button className="btn-secondary" onClick={() => setEditingId(null)}><i className="fa-solid fa-xmark"></i></button>
+                                        <button className="btn-success" onClick={() => handleUpdate(cat._id)} style={{ background: 'var(--success)', border: 'none', borderRadius: '5px', color: 'white', width: '30px' }}><i className="fa-solid fa-check"></i></button>
+                                        <button className="btn-secondary" onClick={() => setEditingId(null)} style={{ width: '30px' }}><i className="fa-solid fa-xmark"></i></button>
                                     </div>
                                 ) : (
                                     <>
@@ -110,12 +99,10 @@ function ManageCategoriesModal({ onClose }) {
                                             <span>{cat.name}</span>
                                             <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>({cat.type})</span>
                                         </div>
-                                        {!cat.isDefault && (
-                                            <div style={{ display: 'flex', gap: '5px' }}>
-                                                <button className="btn-secondary" onClick={() => startEdit(cat)} style={{ padding: '5px' }}><i className="fa-solid fa-pen"></i></button>
-                                                <button className="btn-danger" onClick={() => handleDelete(cat._id)} style={{ background: 'rgba(255,59,48,0.2)', color: 'var(--danger)', padding: '5px' }}><i className="fa-solid fa-trash"></i></button>
-                                            </div>
-                                        )}
+                                        <div style={{ display: 'flex', gap: '5px' }}>
+                                            <button className="btn-secondary" onClick={() => startEdit(cat)} style={{ padding: '5px' }}><i className="fa-solid fa-pen"></i></button>
+                                            <button className="btn-danger" onClick={() => handleDelete(cat._id)} style={{ background: 'rgba(255,59,48,0.2)', color: 'var(--danger)', padding: '5px', border: 'none' }}><i className="fa-solid fa-trash"></i></button>
+                                        </div>
                                     </>
                                 )}
                             </div>

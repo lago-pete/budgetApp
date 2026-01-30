@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUser = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/auth/me');
+            const res = await axios.get('http://localhost:5000/api/auth');
             setUser(res.data);
         } catch (err) {
             console.error("Auth Error", err);

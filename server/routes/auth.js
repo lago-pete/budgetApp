@@ -17,7 +17,7 @@ router.post('/register', async (req, res) => {
         user.password = await bcrypt.hash(password, salt);
         await user.save();
 
-        // Seed default categories for new user
+        // Seed default categories
         const defaultCats = [
             { name: 'Salary', type: 'income', color: '#2ecc71' },
             { name: 'Freelance', type: 'income', color: '#3498db' },
@@ -39,9 +39,8 @@ router.post('/register', async (req, res) => {
 
 // Login User
 router.post('/login', async (req, res) => {
-    const { identifier, password } = req.body; // Adjusted to 'identifier' for consistency with Plan 4 (Username login)
+    const { identifier, password } = req.body;
     try {
-        // Check email OR username
         let user = await User.findOne({
             $or: [{ email: identifier }, { username: identifier }]
         });
@@ -68,26 +67,35 @@ router.get('/', async (req, res) => {
     } catch (err) { res.status(401).json({ msg: 'Invalid token' }); }
 });
 
-// --- IMPERSONATE / DEMO ---
+// --- IMPERSONATE / DEMO (RESET & RESEED) ---
 router.post('/demo', async (req, res) => {
     try {
-        const randId = Math.floor(Math.random() * 10000);
+        const demoEmail = 'demo@demo';
+
+        // 1. DELETE EXISTING DEMO USER TO RESET
+        let existingUser = await User.findOne({ email: demoEmail });
+        if (existingUser) {
+            await Transaction.deleteMany({ user: existingUser.id });
+            await Category.deleteMany({ user: existingUser.id });
+            await User.deleteOne({ _id: existingUser.id });
+        }
+
+        // 2. CREATE FRESH DEMO USER
         const demoUser = new User({
-            name: `Demo User`,
-            email: `demo${randId}@example.com`,
-            username: `demo_user_${randId}`,
-            password: 'demo_password', // Plain text, doesn't matter for ephemeral demo
+            name: 'Demo Account',
+            email: demoEmail,
+            username: 'demo',
+            password: 'demo', // Plain text "demo" matching user request. We hash it.
             xp: Math.floor(Math.random() * 5000),
             level: Math.floor(Math.random() * 10) + 1,
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=demo${randId}`
+            bio: 'This data resets on every login.',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DemoReset'
         });
-
-        // Hash pass just in case
         const salt = await bcrypt.genSalt(10);
-        demoUser.password = await bcrypt.hash('123456', salt);
+        demoUser.password = await bcrypt.hash('demo', salt);
         await demoUser.save();
 
-        // 1. Seed Categories
+        // 3. Seed Categories
         const catsData = [
             { name: 'Salary', type: 'income', color: '#2ecc71' },
             { name: 'Investments', type: 'income', color: '#3498db' },
@@ -100,32 +108,33 @@ router.post('/demo', async (req, res) => {
         ];
         const categories = await Category.insertMany(catsData.map(c => ({ ...c, user: demoUser.id, isDefault: false })));
 
-        // 2. See Transactions (Random 50)
+        // 4. Seed Transactions
         const transactions = [];
         const now = new Date();
-        for (let i = 0; i < 50; i++) {
-            const isIncome = Math.random() > 0.7; // 30% Income
+        for (let i = 0; i < 60; i++) {
+            const isIncome = Math.random() > 0.7;
             const type = isIncome ? 'income' : 'expense';
             const relevantCats = categories.filter(c => c.type === type);
             const cat = relevantCats[Math.floor(Math.random() * relevantCats.length)];
 
-            // Random date within last 3 months
             const date = new Date();
             date.setDate(date.getDate() - Math.floor(Math.random() * 90));
+            // Ensure some are today
+            if (i < 5) date.setTime(now.getTime());
 
             transactions.push({
                 user: demoUser.id,
-                title: isIncome ? 'Payment Received' : `Purchase at Store ${i}`,
-                amount: Math.floor(Math.random() * (isIncome ? 2000 : 100)) + 10,
+                title: isIncome ? 'Income Source' : `Demo Purchase ${i + 1}`,
+                amount: Math.floor(Math.random() * (isIncome ? 2000 : 150)) + 10,
                 type,
                 category: cat.name,
                 date: date,
-                notes: 'Auto-generated demo transaction'
+                notes: 'Data resets on reload.'
             });
         }
         await Transaction.insertMany(transactions);
 
-        // Login
+        // 5. Login
         const payload = { user: { id: demoUser.id } };
         jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, (err, token) => {
             if (err) throw err;
