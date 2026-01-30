@@ -15,6 +15,10 @@ function CategoriesPage({ onEditTransaction }) {
     const [dateFilter, setDateFilter] = useState({ mode: 'all', values: [], custom: { start: '', end: '' } });
     const [showCustomDateModal, setShowCustomDateModal] = useState(false);
 
+    // Activity Table State
+    const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+    const [displayLimit, setDisplayLimit] = useState(100);
+
     useEffect(() => { refreshData(); }, []);
 
     const refreshData = async () => {
@@ -256,6 +260,37 @@ function CategoriesPage({ onEditTransaction }) {
         });
     }
     const pieCenterTotal = pieData.reduce((sum, d) => sum + d.value, 0);
+
+    // --- ACTIVITY LOGIC (Sort, Paginate, Total) ---
+    useEffect(() => {
+        setDisplayLimit(100); // Reset limit when filter results change
+    }, [dateFilter, selectedCategories, viewType]);
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedTransactions = [...rangeTransactions].sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    const visibleTransactions = sortedTransactions.slice(0, displayLimit);
+    const totalActivitySum = sortedTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        if (scrollHeight - scrollTop <= clientHeight + 50) {
+            if (displayLimit < sortedTransactions.length) {
+                setDisplayLimit(prev => prev + 50);
+            }
+        }
+    };
 
     // --- INTERACTION & HANDLERS ---
     const handleBarClick = (data) => {
@@ -502,12 +537,21 @@ function CategoriesPage({ onEditTransaction }) {
             {/* ROW 4: Activity */}
             <section className="glass-panel">
                 <h3 dangerouslySetInnerHTML={{ __html: getContextTitle('Activity') }}></h3>
-                <ul className="transaction-list horizontal-style" style={{ maxHeight: '500px', overflowY: 'auto', marginTop: '10px' }}>
-                    {rangeTransactions.map(t => {
+
+                {/* Header Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '10px', borderBottom: '1px solid rgba(255,255,255,0.1)', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>
+                    <div onClick={() => handleSort('title')} style={{ cursor: 'pointer' }}>Title {sortConfig.key === 'title' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    <div onClick={() => handleSort('date')} style={{ cursor: 'pointer' }}>Date {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    <div onClick={() => handleSort('category')} style={{ cursor: 'pointer' }}>Category {sortConfig.key === 'category' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    <div onClick={() => handleSort('amount')} style={{ cursor: 'pointer', textAlign: 'right' }}>Amount {sortConfig.key === 'amount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                </div>
+
+                <ul className="transaction-list horizontal-style" onScroll={handleScroll} style={{ maxHeight: '500px', overflowY: 'auto', marginTop: '0px' }}>
+                    {visibleTransactions.map(t => {
                         const catObj = categories.find(c => c.name === t.category);
                         const catColor = catObj ? catObj.color : 'var(--text-muted)';
                         return (
-                            <li key={t._id} className="transaction-item compact" onClick={() => onEditTransaction && onEditTransaction(t)} style={{ cursor: 'pointer', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', alignItems: 'center', padding: '10px' }}>
+                            <li key={t._id} className="transaction-item compact" onClick={() => onEditTransaction && onEditTransaction(t)} style={{ cursor: 'pointer', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', alignItems: 'center', padding: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <div className="t-main"><h4 style={{ margin: 0, fontSize: '0.9rem' }}>{t.title}</h4></div>
                                 <div className="t-date" style={{ fontSize: '0.9rem' }}>{new Date(t.date).toLocaleDateString()}</div>
                                 <div className="t-cat"><span className="cat-pill" style={{ background: catColor + '30', color: catColor, border: `1px solid ${catColor}50`, padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem' }}>{t.category}</span></div>
@@ -515,7 +559,18 @@ function CategoriesPage({ onEditTransaction }) {
                             </li>
                         );
                     })}
+                    {visibleTransactions.length < sortedTransactions.length && (
+                        <div style={{ padding: '10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Loading more...</div>
+                    )}
                 </ul>
+
+                {/* Footer Total */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '15px 10px', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', fontWeight: 'bold' }}>
+                    <div>Total</div>
+                    <div></div>
+                    <div></div>
+                    <div style={{ textAlign: 'right' }}>${totalActivitySum.toFixed(2)}</div>
+                </div>
             </section>
 
             {/* CUSTOM DATE MODAL */}
