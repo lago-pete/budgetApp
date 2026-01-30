@@ -52,7 +52,7 @@ function Layout() {
 
                         {/* Dynamic Button */}
                         {activeView === 'categories' ? (
-                            <button className="btn-secondary" onClick={() => setShowCategoryModal(true)}>
+                            <button className="btn-primary" onClick={() => setShowCategoryModal(true)}>
                                 <i className="fa-solid fa-pen-to-square"></i> Edit Categories
                             </button>
                         ) : activeView === 'dashboard' ? (

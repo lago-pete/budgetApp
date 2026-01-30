@@ -18,7 +18,8 @@ function ManageCategoriesModal({ onClose }) {
 
     const fetchCategories = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/categories');
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://localhost:5000/api/categories', { headers: { 'x-auth-token': token } });
             setCategories(res.data);
             setLoading(false);
         } catch (err) { console.error(err); setLoading(false); }
@@ -27,9 +28,10 @@ function ManageCategoriesModal({ onClose }) {
     const handleCreate = async (e) => {
         e.preventDefault();
         try {
+            const token = localStorage.getItem('token');
             await axios.post('http://localhost:5000/api/categories', {
                 name: newName, type: newType, color: newColor
-            });
+            }, { headers: { 'x-auth-token': token } });
             setNewName('');
             fetchCategories();
         } catch (err) { alert("Failed"); }
@@ -37,19 +39,21 @@ function ManageCategoriesModal({ onClose }) {
 
     const handleUpdate = async (id) => {
         try {
+            const token = localStorage.getItem('token');
             await axios.put(`http://localhost:5000/api/categories/${id}`, {
                 name: editName, color: editColor
-            });
+            }, { headers: { 'x-auth-token': token } });
             setEditingId(null);
             // Wait a bit or optimistic?
             fetchCategories();
-        } catch (err) { alert("Update failed"); }
+        } catch (err) { alert("Update failed: " + (err.response?.data?.msg || err.message)); }
     };
 
     const handleDelete = async (id) => {
         if (!window.confirm("Delete? Transactions moved to 'Other'.")) return;
         try {
-            await axios.delete(`http://localhost:5000/api/categories/${id}`);
+            const token = localStorage.getItem('token');
+            await axios.delete(`http://localhost:5000/api/categories/${id}`, { headers: { 'x-auth-token': token } });
             fetchCategories();
         } catch (err) { alert("Delete failed"); }
     };

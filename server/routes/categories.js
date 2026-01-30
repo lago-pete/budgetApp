@@ -18,12 +18,7 @@ const auth = (req, res, next) => {
 
 router.get('/', auth, async (req, res) => {
     try {
-        const categories = await Category.find({
-            $or: [
-                { isDefault: true },
-                { user: req.user.id }
-            ]
-        });
+        const categories = await Category.find({ user: req.user.id });
         res.json(categories);
     } catch (err) { res.status(500).send('Server Error'); }
 });
