@@ -57,7 +57,6 @@ function CategoriesPage({ onEditTransaction }) {
 
     const pad = (n) => String(n).padStart(2, '0');
 
-    // Manual Local Date Key Generator (YYYY-MM-DD or YYYY-MM-01)
     const toLocalKey = (date, granularity) => {
         const d = new Date(date);
         const y = d.getFullYear();
@@ -95,10 +94,8 @@ function CategoriesPage({ onEditTransaction }) {
     const generateTimeBuckets = (start, end, granularity) => {
         const buckets = {};
         let current = new Date(start);
-        // Construct fresh to avoid mutation issues
         current = new Date(current.getFullYear(), current.getMonth(), current.getDate());
 
-        // Align logic
         if (granularity === 'year') current.setMonth(0, 1);
         else if (granularity === 'month') current.setDate(1);
         else if (granularity === 'week') {
@@ -140,7 +137,6 @@ function CategoriesPage({ onEditTransaction }) {
         return buckets;
     };
 
-    // Custom Tick Component
     const CustomTick = (props) => {
         const { x, y, payload, buckets } = props;
         const bucket = buckets ? Object.values(buckets).find(b => b.key === payload.value) : null;
@@ -164,11 +160,10 @@ function CategoriesPage({ onEditTransaction }) {
     let startDate = new Date();
     let endDate = new Date();
     let granularity = 'month';
-    const now = new Date(); // Local now
+    const now = new Date();
 
     if (dateFilter.mode === 'all') {
         endDate = now;
-        // "Last 12 Months" = Current + 11 Previous = 12 total
         startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
         granularity = 'month';
     } else if (dateFilter.mode === 'thisWeek') {
@@ -208,7 +203,7 @@ function CategoriesPage({ onEditTransaction }) {
     const rangeTransactions = allTransactions.filter(t => {
         if (t.type !== viewType) return false;
         const [y, m, d] = t.date.substring(0, 10).split('-').map(Number);
-        const dateObj = new Date(y, m - 1, d); // Strict Local
+        const dateObj = new Date(y, m - 1, d);
 
         if (dateObj < startDate || dateObj > endDate) return false;
         if (selectedCategories.length > 0 && !selectedCategories.some(c => c.name === t.category)) return false;
@@ -216,17 +211,14 @@ function CategoriesPage({ onEditTransaction }) {
     });
 
     rangeTransactions.forEach(t => {
-        // Logic for key matching must mirror generateTimeBuckets
         const [y, m, d] = t.date.substring(0, 10).split('-').map(Number);
         const dateObj = new Date(y, m - 1, d);
 
-        // Determine Align Key
         let key = '';
         if (granularity === 'year') key = `${y}-01-01`;
         else if (granularity === 'month') key = `${y}-${pad(m)}-01`;
         else if (granularity === 'day') key = `${y}-${pad(m)}-${pad(d)}`;
         else if (granularity === 'week') {
-            // Find week start
             const dayOfWeek = dateObj.getDay();
             const diff = dateObj.getDate() - dayOfWeek;
             const wStart = new Date(dateObj);
@@ -245,7 +237,6 @@ function CategoriesPage({ onEditTransaction }) {
     const histogramData = Object.values(buckets).sort((a, b) => a.key.localeCompare(b.key));
     const availableYears = [...new Set(allTransactions.map(t => new Date(t.date).getFullYear()))].sort().reverse();
 
-    // --- 2. Pie Data ---
     let pieData = [];
     if (selectedCategories.length === 1) {
         pieData = histogramData.map((b, i) => ({
@@ -266,7 +257,35 @@ function CategoriesPage({ onEditTransaction }) {
     }
     const pieCenterTotal = pieData.reduce((sum, d) => sum + d.value, 0);
 
-    // --- Handlers ---
+    // --- INTERACTION & HANDLERS ---
+    const handleBarClick = (data) => {
+        if (!data || !data.activePayload) return;
+        const key = data.activePayload[0].payload.key;
+        const bucket = buckets[key];
+        if (!bucket) return;
+
+        const g = bucket.granularity;
+        let newStart, newEnd;
+        const [y, m, d] = key.split('-').map(Number);
+
+        if (g === 'year') {
+            newStart = `${y}-01-01`;
+            newEnd = `${y}-12-31`;
+        } else if (g === 'month') {
+            newStart = `${y}-${pad(m)}-01`;
+            const lastDay = new Date(y, m, 0).getDate();
+            newEnd = `${y}-${pad(m)}-${lastDay}`;
+        } else if (g === 'week') {
+            newStart = key;
+            const endObj = new Date(y, m - 1, d + 6);
+            newEnd = `${endObj.getFullYear()}-${pad(endObj.getMonth() + 1)}-${pad(endObj.getDate())}`;
+        } else {
+            newStart = key;
+            newEnd = key;
+        }
+        setDateFilter({ mode: 'custom', values: [], custom: { start: newStart, end: newEnd } });
+    };
+
     const applyCustomDate = (e) => {
         e.preventDefault();
         const s = e.target.start.value;
@@ -304,11 +323,50 @@ function CategoriesPage({ onEditTransaction }) {
         );
     };
 
+    // --- Dynamic Title Helpers ---
+    const getDateLabel = () => {
+        if (!startDate || !endDate) return '';
+
+        // Year Mode
+        if (dateFilter.mode === 'year') return `(${dateFilter.values[0]})`;
+
+        // This Month -> (Jan)
+        if (dateFilter.mode === 'thisMonth') return `(${startDate.toLocaleDateString('en-US', { month: 'short' })})`;
+
+        // All Time -> (Feb 2025 - Jan 2026)
+        if (dateFilter.mode === 'all') {
+            const startStr = startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            const endStr = endDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            return `(${startStr} - ${endStr})`;
+        }
+
+        // Single Day -> (Jan 13)
+        if (startDate.toDateString() === endDate.toDateString()) {
+            return `(${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+        }
+
+        // Default Range -> (Jan 1 - Jan 13)
+        const opts = { month: 'short', day: 'numeric' };
+        const startStr = startDate.toLocaleDateString('en-US', opts);
+        const endStr = endDate.toLocaleDateString('en-US', opts);
+
+        if (startDate.getFullYear() !== endDate.getFullYear()) {
+            const lOpts = { month: 'short', day: 'numeric', year: 'numeric' };
+            return `(${startDate.toLocaleDateString('en-US', lOpts)} - ${endDate.toLocaleDateString('en-US', lOpts)})`;
+        }
+        return `(${startStr} - ${endStr})`;
+    };
+
+    const getContextTitle = (base) => {
+        const prefix = selectedCategories.length === 1 ? selectedCategories[0].name : '';
+        const dateSuffix = getDateLabel();
+        return `${prefix ? prefix + ' ' : ''}${base} <span style="font-size:0.8rem; opacity:0.7; margin-left:5px">${dateSuffix}</span>`;
+    };
 
     return (
         <div className="view active-view slide-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '20px' }}>
 
-            {/* ROW 1: Toggle */}
+            {/* ROW 1... */}
             <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <div className="toggle-switch" style={{ width: '250px' }}>
                     <input type="radio" id="view-expense" name="viewType" value="expense" checked={viewType === 'expense'} onChange={() => { setViewType('expense'); setSelectedCategories([]); }} />
@@ -318,7 +376,7 @@ function CategoriesPage({ onEditTransaction }) {
                 </div>
             </div>
 
-            {/* ROW 1.5: Category Filter Bar */}
+            {/* ...Category Filter... */}
             <div className="filter-bar-container" style={{ overflowX: 'auto', whiteSpace: 'nowrap', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <button className={`filter-pill ${selectedCategories.length === 0 ? 'active' : ''}`} onClick={() => setSelectedCategories([])}
                     style={{ background: selectedCategories.length === 0 ? 'var(--primary)' : 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '20px', marginRight: '10px', cursor: 'pointer', fontSize: '0.9rem' }}>
@@ -341,7 +399,7 @@ function CategoriesPage({ onEditTransaction }) {
                 ))}
             </div>
 
-            {/* ROW 1.75: Date Filter Row */}
+            {/* ...Date Filter... */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}><i className="fa-regular fa-calendar" style={{ marginRight: '5px' }}></i> Dates:</span>
@@ -359,53 +417,54 @@ function CategoriesPage({ onEditTransaction }) {
                     ))}
 
                     <button onClick={() => setShowCustomDateModal(true)} style={{ background: dateFilter.mode === 'custom' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', padding: '4px 12px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}>Custom</button>
+
+                    {dateFilter.mode === 'custom' && (
+                        <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '8px',
+                            background: 'rgba(249, 199, 79, 0.2)', border: '1px solid var(--accent)', color: 'var(--accent)',
+                            padding: '4px 12px', borderRadius: '15px', fontSize: '0.8rem', marginLeft: '10px'
+                        }}>
+                            <span>
+                                {(() => {
+                                    if (dateFilter.custom.start === dateFilter.custom.end && dateFilter.custom.start) {
+                                        const [y, m, d] = dateFilter.custom.start.split('-').map(Number);
+                                        return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                    }
+                                    return `${dateFilter.custom.start} - ${dateFilter.custom.end}`;
+                                })()}
+                            </span>
+                            <button onClick={() => setDateFilter({ mode: 'all', values: [], custom: {} })}
+                                style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', padding: 0 }}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* ROW 2: Histogram */}
             <section className="glass-panel" style={{ padding: '20px 20px 10px 20px', position: 'relative', zIndex: 5 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0px' }}>
-                    <h4 style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>
-                        {selectedCategories.length === 1 ? `${selectedCategories[0].name} Trend` : 'Spending Trend'}
-                        <span style={{ marginLeft: '5px', fontSize: '0.8rem', opacity: 0.7 }}>
-                            {dateFilter.mode === 'all' && '(Last 12 Mo)'}
-                            {dateFilter.mode === 'thisWeek' && '(Sun - Sat)'}
-                            {dateFilter.mode === 'thisMonth' && '(Weekly)'}
-                            {dateFilter.mode === 'year' && '(Monthly)'}
-                            {dateFilter.mode === 'custom' && `(${granularity})`}
-                        </span>
-                    </h4>
+                    <h4 style={{ fontSize: '1rem', color: 'var(--text-muted)' }} dangerouslySetInnerHTML={{ __html: getContextTitle('Spending Trend') }}></h4>
                 </div>
 
-                {/* Height increased for bottom labels */}
                 <div style={{ height: '240px', width: '100%' }}>
                     <ResponsiveContainer>
-                        <BarChart data={histogramData} margin={{ top: 10, right: 0, left: 0, bottom: 20 }}>
+                        <BarChart data={histogramData} margin={{ top: 10, right: 0, left: 0, bottom: 20 }} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
                             <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
-
-                            {/* Y hide */}
                             <YAxis hide domain={[0, 'auto']} />
-
-                            {/* Custom Tick XAxis */}
                             <XAxis
-                                dataKey="key"
-                                interval={0}
+                                dataKey="key" interval={0}
                                 tick={<CustomTick buckets={buckets} />}
-                                height={60}
-                                axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                                tickLine={false}
+                                height={60} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} tickLine={false}
                             />
-
                             <Tooltip wrapperStyle={{ zIndex: 1000 }} contentStyle={{ background: '#1e1e24', border: '1px solid #333' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
 
-                            {/* Bars (No Top Labels) */}
                             {selectedCategories.length === 1 ? (
                                 <Bar dataKey={selectedCategories[0].name} fill={selectedCategories[0].color} />
                             ) : (
                                 <>
-                                    {activeCategories.map(cat => (
-                                        <Bar key={cat._id} dataKey={cat.name} stackId="a" fill={cat.color} />
-                                    ))}
+                                    {activeCategories.map(cat => (<Bar key={cat._id} dataKey={cat.name} stackId="a" fill={cat.color} />))}
                                 </>
                             )}
                         </BarChart>
@@ -415,24 +474,24 @@ function CategoriesPage({ onEditTransaction }) {
 
             {/* ROW 3: Pie Chart */}
             <section className="glass-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', flexDirection: 'column', zIndex: 1 }}>
-                <h4 style={{ marginBottom: '10px', fontSize: '1rem', color: 'var(--text-muted)' }}>
-                    Breakdown
-                </h4>
+                <h4 style={{ marginBottom: '10px', fontSize: '1rem', color: 'var(--text-muted)' }} dangerouslySetInnerHTML={{ __html: getContextTitle('Breakdown') }}></h4>
                 <div style={{ width: '100%', maxWidth: '400px', height: '300px', position: 'relative' }}>
                     {pieData.length > 0 ? (
                         <>
-                            <ResponsiveContainer>
+                            {/* Z-Index Fix: Text BEHIND Chart */}
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', zIndex: 0 }}>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>${pieCenterTotal.toFixed(0)}</div>
+                            </div>
+
+                            <ResponsiveContainer style={{ zIndex: 1, position: 'relative' }}>
                                 <PieChart>
                                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={3} dataKey="value">
                                         {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
                                     </Pie>
-                                    <Tooltip formatter={(value) => `$${value.toFixed(2)}`} contentStyle={{ background: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '10px' }} itemStyle={{ color: 'white' }} />
+                                    <Tooltip formatter={(value) => `$${value.toFixed(2)}`} contentStyle={{ background: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '10px', zIndex: 1000 }} itemStyle={{ color: 'white' }} />
                                 </PieChart>
                             </ResponsiveContainer>
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>${pieCenterTotal.toFixed(0)}</div>
-                            </div>
                         </>
                     ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Data</div>
@@ -442,7 +501,7 @@ function CategoriesPage({ onEditTransaction }) {
 
             {/* ROW 4: Activity */}
             <section className="glass-panel">
-                <h3>{selectedCategories.length === 1 ? `${selectedCategories[0].name} Activity` : 'Activity'}</h3>
+                <h3 dangerouslySetInnerHTML={{ __html: getContextTitle('Activity') }}></h3>
                 <ul className="transaction-list horizontal-style" style={{ maxHeight: '500px', overflowY: 'auto', marginTop: '10px' }}>
                     {rangeTransactions.map(t => {
                         const catObj = categories.find(c => c.name === t.category);
