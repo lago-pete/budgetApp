@@ -87,9 +87,11 @@ function LoginPage() {
                     <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
                 </div>
 
-                <button onClick={handleDemoLogin} className="btn-secondary full-width" disabled={loading} style={{ background: 'linear-gradient(45deg, #FF9966, #FF5E62)', border: 'none', color: 'white', fontWeight: 'bold' }}>
-                    <i className="fa-solid fa-rocket" style={{ marginRight: '8px' }}></i> Try Demo Account
-                </button>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <button onClick={handleDemoLogin} className="btn-secondary" disabled={loading} style={{ background: 'linear-gradient(45deg, #FF9966, #FF5E62)', border: 'none', color: 'white', fontWeight: 'bold', borderRadius: '16px', padding: '14px 32px', boxShadow: '0 4px 15px rgba(255, 102, 98, 0.3)' }}>
+                        <i className="fa-solid fa-rocket" style={{ marginRight: '8px' }}></i> Try Demo Account
+                    </button>
+                </div>
 
                 <p className="auth-footer">
                     Don't have an account? <Link to="/register">Register</Link>

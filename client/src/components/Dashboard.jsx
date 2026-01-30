@@ -17,47 +17,85 @@ function Dashboard({ onEditTransaction }) {
         fetchData();
     }, []);
 
-    const income = transactions
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + t.amount, 0);
+    // --- STATS LOGIC ---
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
 
-    const expenses = transactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
+    // YTD Logic
+    const ytdTransactions = transactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getFullYear() === currentYear && d <= now;
+    });
+    const ytdIncome = ytdTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const ytdExpenses = ytdTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const ytdNet = ytdIncome - ytdExpenses;
 
-    const leftToBudget = income - expenses;
-    const percentage = income > 0 ? Math.max(0, (leftToBudget / income) * 100) : 0;
+    // Monthly Logic
+    const monthlyTransactions = transactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    });
+    const monthlyIncome = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const monthlyExpenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const monthlyLeft = monthlyIncome - monthlyExpenses;
+    const monthlyPercentage = monthlyIncome > 0 ? Math.max(0, (monthlyLeft / monthlyIncome) * 100) : 0;
 
     let ringColor = 'var(--accent-primary)';
-    if (leftToBudget < 0) ringColor = 'var(--danger)';
-    else if (percentage < 20) ringColor = 'var(--accent-secondary)';
+    if (monthlyLeft < 0) ringColor = 'var(--danger)';
+    else if (monthlyPercentage < 20) ringColor = 'var(--accent-secondary)';
 
     const visibleTransactions = transactions.slice(0, limit);
-    // Show button if there are more transactions than currently visible
-    const showLoadMore = transactions.length > limit;
 
     return (
         <div className="view active-view slide-in">
-            <section className="budget-hero glass-panel">
-                <div className="budget-ring-container">
-                    <div className="budget-ring" style={{ '--p': percentage, '--c': ringColor }}>
-                        <div className="ring-content">
-                            <span className="label">Left to Budget</span>
-                            <span className="amount">${leftToBudget.toFixed(2)}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+
+                {/* LEFT: OVERALL (YTD) */}
+                <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', padding: '2rem' }}>
+                    <h3 style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5rem' }}>Overall (YTD)</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div className="stat-item">
+                            <span className="label">Total Net</span>
+                            <span className="value" style={{ color: ytdNet >= 0 ? 'var(--success)' : 'var(--danger)' }}>${ytdNet.toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto' }}>
+                            <div className="stat-item">
+                                <span className="label">Income</span>
+                                <span className="value income" style={{ fontSize: '1.2rem' }}>${ytdIncome.toFixed(2)}</span>
+                            </div>
+                            <div className="stat-item" style={{ textAlign: 'right' }}>
+                                <span className="label">Expenses</span>
+                                <span className="value expense" style={{ fontSize: '1.2rem' }}>${ytdExpenses.toFixed(2)}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div className="budget-stats">
-                    <div className="stat-item">
-                        <span className="label">Total Income</span>
-                        <span className="value income">${income.toFixed(2)}</span>
+                </section>
+
+                {/* RIGHT: CURRENT MONTH */}
+                <section className="glass-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <h3 style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Current Month</h3>
+                        <div className="stat-item">
+                            <span className="label">Total Income</span>
+                            <span className="value income" style={{ fontSize: '1.2rem' }}>${monthlyIncome.toFixed(2)}</span>
+                        </div>
+                        <div className="stat-item">
+                            <span className="label">Total Expenses</span>
+                            <span className="value expense" style={{ fontSize: '1.2rem' }}>${monthlyExpenses.toFixed(2)}</span>
+                        </div>
                     </div>
-                    <div className="stat-item">
-                        <span className="label">Total Expenses</span>
-                        <span className="value expense">${expenses.toFixed(2)}</span>
+
+                    <div className="budget-ring-container">
+                        <div className="budget-ring" style={{ '--p': monthlyPercentage, '--c': ringColor }}>
+                            <div className="ring-content">
+                                <span className="label">Left to Budget</span>
+                                <span className="amount">${monthlyLeft.toFixed(2)}</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </div>
 
             {/* Full Width Activity Feed */}
             <section className="recent-transactions glass-panel" style={{ marginTop: '1.5rem' }}>
@@ -98,15 +136,6 @@ function Dashboard({ onEditTransaction }) {
                 </ul>
 
                 {transactions.length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No transactions yet. Add one!</div>}
-
-                {/* LOAD MORE BUTTON */}
-                {showLoadMore && (
-                    <div style={{ textAlign: 'center', marginTop: '15px' }}>
-                        <button onClick={() => setLimit(prev => prev + 10)} className="btn-secondary" style={{ width: '200px', margin: '0 auto' }}>
-                            Load More
-                        </button>
-                    </div>
-                )}
             </section>
 
             <style>{`

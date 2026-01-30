@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 function CategoriesPage({ onEditTransaction }) {
     const [categories, setCategories] = useState([]);
     const [allTransactions, setAllTransactions] = useState([]);
-    const [viewType, setViewType] = useState('expense');
+    const [viewType, setViewType] = useState('combined');
 
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [showCategoryModal, setShowCategoryModal] = useState(false);

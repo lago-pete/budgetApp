@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
+function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onManageCategories }) {
     const [type, setType] = useState(initialData?.type || 'expense');
     const [amount, setAmount] = useState(initialData?.amount || '');
     const [categories, setCategories] = useState([]);
@@ -10,56 +10,47 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
     const [notes, setNotes] = useState(initialData?.notes || '');
     const [date, setDate] = useState(initialData?.date ? initialData.date.substring(0, 10) : new Date().toISOString().substring(0, 10));
     const [file, setFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(initialData?.proofUrl ? `http://localhost:5000${initialData.proofUrl}` : null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [pastTitles, setPastTitles] = useState([]);
 
-    // Template State
-    const [templates, setTemplates] = useState([]);
-    const [selectedTemplateId, setSelectedTemplateId] = useState('');
+    const pickerRef = React.useRef(null);
 
     useEffect(() => {
-        // Fetch categories and templates
         Promise.all([
             axios.get('http://localhost:5000/api/categories'),
-            axios.get('http://localhost:5000/api/users/templates')
-        ]).then(([catRes, tempRes]) => {
+            axios.get('http://localhost:5000/api/transactions') // Fetch for title history
+        ]).then(([catRes, txRes]) => {
             setCategories(catRes.data);
-            setTemplates(tempRes.data);
 
-            // Initial category selection if adding new
+            // Extract unique titles
+            const titles = [...new Set(txRes.data.map(t => t.title))];
+            setPastTitles(titles.slice(0, 20)); // Limit to 20
+
             if (!initialData && !selectedCategory && catRes.data.length > 0) {
                 const firstMatch = catRes.data.find(c => c.type === type);
-                if (firstMatch) setSelectedCategory(firstMatch.name);
+                // Don't auto-select, let user pick. Or auto-select first? User said "category should be button of all categories"
             }
-        })
-            .catch(err => console.error(err));
+        }).catch(err => console.error(err));
     }, []);
 
-    const handleTemplateSelect = (e) => {
-        const tId = e.target.value;
-        setSelectedTemplateId(tId);
-        if (!tId) return;
-
-        const temp = templates.find(t => t._id === tId);
-        if (temp) {
-            setTitle(temp.title);
-            setAmount(temp.amount);
-            setType(temp.type);
-            setSelectedCategory(temp.category);
-            // Note: we don't save dates in templates usually, but could.
+    const handleFileDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const droppedFile = e.dataTransfer.files[0];
+        if (droppedFile && droppedFile.type.startsWith('image/')) {
+            setFile(droppedFile);
+            setPreviewUrl(URL.createObjectURL(droppedFile));
         }
     };
 
-    const saveAsTemplate = async () => {
-        const name = prompt("Enter a name for this preset (e.g. 'Gym Membership'):", title);
-        if (!name) return;
-        try {
-            const res = await axios.post('http://localhost:5000/api/users/templates', {
-                name, title, amount, type, category: selectedCategory
-            });
-            setTemplates(res.data);
-            alert("Preset saved!");
-        } catch (err) { alert("Failed to save preset"); }
+    const handleFileSelect = (e) => {
+        const selected = e.target.files[0];
+        if (selected) {
+            setFile(selected);
+            setPreviewUrl(URL.createObjectURL(selected));
+        }
     };
-
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -77,10 +68,10 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
         }
 
         const payload = {
-            title: title || selectedCategory,
+            title: title || selectedCategory || 'Untitled',
             amount: parseFloat(amount),
             type,
-            category: selectedCategory,
+            category: selectedCategory || (type === 'income' ? 'Salary' : 'Uncategorized'), // Fallback
             proofUrl,
             notes,
             date
@@ -104,88 +95,241 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null }) {
         } catch (err) { console.error(err); }
     };
 
+    const relevantCategories = categories.filter(c => c.type === type);
+
+    // Removed nested DateInput component to fix focus loss issue
+    // The input is now rendered directly in the return statement
+
     return (
         <div className="modal-overlay">
-            <div className="modal glass-panel bounce-in">
+            <div
+                className="modal glass-panel bounce-in"
+                style={{ maxWidth: '500px', display: 'flex', flexDirection: 'column' }}
+            >
+                {/* HEADER */}
                 <div className="modal-header">
-                    <h3>{initialData ? 'Edit Transaction' : 'Add New Transaction'}</h3>
-                    <button className="close-modal" onClick={onClose}><i className="fa-solid fa-xmark"></i></button>
+                    <h3>{initialData ? 'Edit Transaction' : 'Add Transaction'}</h3>
+                    <button className="close-modal" onClick={onClose}>
+                        <i className="fa-solid fa-xmark"></i>
+                    </button>
                 </div>
-                <div className="modal-body">
 
-                    {/* Template Selector (Only on Add) */}
-                    {!initialData && (
-                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '5px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <i className="fa-solid fa-bolt" style={{ color: 'var(--accent-secondary)' }}></i>
-                            <select value={selectedTemplateId} onChange={handleTemplateSelect} style={{ flex: 1, background: 'transparent', border: 'none', color: 'white' }}>
-                                <option value="">Quick Fill from Preset...</option>
-                                {templates.map(t => <option key={t._id} value={t._id}>{t.name} - ${t.amount}</option>)}
-                            </select>
+                {/* BODY */}
+                <div
+                    className="modal-body"
+                    style={{ overflowY: 'auto', maxHeight: '80vh' }}
+                >
+                    <form
+                        onSubmit={handleSubmit}
+                        style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}
+                    >
+                        {/* TYPE TOGGLE */}
+                        <div className="toggle-switch full-width">
+                            <input
+                                type="radio"
+                                id="t-expense"
+                                name="type"
+                                value="expense"
+                                checked={type === 'expense'}
+                                onChange={() => {
+                                    setType('expense');
+                                    setSelectedCategory('');
+                                }}
+                            />
+                            <label htmlFor="t-expense">Expense</label>
+
+                            <input
+                                type="radio"
+                                id="t-income"
+                                name="type"
+                                value="income"
+                                checked={type === 'income'}
+                                onChange={() => {
+                                    setType('income');
+                                    setSelectedCategory('');
+                                }}
+                            />
+                            <label htmlFor="t-income">Income</label>
                         </div>
-                    )}
 
-                    <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label>Type</label>
-                            <div className="toggle-switch">
-                                <input
-                                    type="radio" id="type-expense" name="type" value="expense"
-                                    checked={type === 'expense'} onChange={() => { setType('expense'); setSelectedCategory(''); }}
-                                    disabled={!!initialData}
-                                />
-                                <label htmlFor="type-expense">Expense</label>
+                        {/* DATE & AMOUNT */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div className="form-group">
+                                <label>Date</label>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="text"
+                                        value={date}
+                                        onChange={e => setDate(e.target.value)}
+                                        required
+                                        style={{ width: '100%', paddingRight: '40px' }}
+                                    />
+                                    <i
+                                        className="fa-regular fa-calendar"
+                                        onClick={() => pickerRef.current.showPicker()}
+                                        style={{
+                                            position: 'absolute',
+                                            right: '15px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            cursor: 'pointer',
+                                            color: 'var(--primary)'
+                                        }}
+                                    />
+                                    <input
+                                        type="date"
+                                        ref={pickerRef}
+                                        value={date}
+                                        onChange={e => setDate(e.target.value)}
+                                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                                    />
+                                </div>
+                            </div>
 
+                            <div className="form-group">
+                                <label>Amount</label>
                                 <input
-                                    type="radio" id="type-income" name="type" value="income"
-                                    checked={type === 'income'} onChange={() => { setType('income'); setSelectedCategory(''); }}
-                                    disabled={!!initialData}
+                                    type="number"
+                                    value={amount}
+                                    onChange={e => setAmount(e.target.value)}
+                                    placeholder="0.00"
+                                    required
+                                    step="0.01"
                                 />
-                                <label htmlFor="type-income">Income</label>
                             </div>
                         </div>
 
-                        <div className="form-group">
-                            <label>Date</label>
-                            <input type="date" value={date} onChange={e => setDate(e.target.value)} required style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '10px', borderRadius: '5px', width: '100%' }} />
-                        </div>
-
+                        {/* TITLE */}
                         <div className="form-group">
                             <label>Title</label>
-                            <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Weekly Groceries" />
+                            <input
+                                type="text"
+                                list="title-suggestions"
+                                value={title}
+                                onChange={e => setTitle(e.target.value)}
+                                placeholder="e.g. Grocery Run"
+                            />
+                            <datalist id="title-suggestions">
+                                {pastTitles.map((t, i) => (
+                                    <option key={i} value={t} />
+                                ))}
+                            </datalist>
                         </div>
 
-                        <div className="form-group">
-                            <label>Amount</label>
-                            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" required />
-                        </div>
-
+                        {/* CATEGORY */}
                         <div className="form-group">
                             <label>Category</label>
-                            <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} required>
-                                <option value="">Select Category</option>
-                                {categories.filter(c => c.type === type).map(c => (
-                                    <option key={c._id} value={c.name}>{c.name}</option>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                {relevantCategories.map(cat => (
+                                    <button
+                                        type="button"
+                                        key={cat._id}
+                                        onClick={() => setSelectedCategory(cat.name)}
+                                        style={{
+                                            flex: '1 1 auto',
+                                            background:
+                                                selectedCategory === cat.name
+                                                    ? cat.color
+                                                    : 'rgba(255,255,255,0.05)',
+                                            border:
+                                                selectedCategory === cat.name
+                                                    ? `2px solid ${cat.color}`
+                                                    : '1px solid rgba(255,255,255,0.1)',
+                                            color: 'white',
+                                            padding: '8px 12px',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem',
+                                            transition: 'all 0.2s ease',
+                                            boxShadow:
+                                                selectedCategory === cat.name
+                                                    ? `0 0 10px ${cat.color}40`
+                                                    : 'none'
+                                        }}
+                                    >
+                                        {cat.name}
+                                    </button>
                                 ))}
-                            </select>
+                            </div>
                         </div>
 
+                        {/* NOTES */}
                         <div className="form-group">
-                            <label>Notes (Optional)</label>
-                            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows="2" style={{ width: '100%', background: 'rgba(255,255,255,0.1)', border: 'none', padding: '10px', color: 'white', borderRadius: '5px' }} />
+                            <label>Notes</label>
+                            <textarea
+                                value={notes}
+                                onChange={e => setNotes(e.target.value)}
+                                rows="2"
+                                style={{
+                                    width: '100%',
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: 'none',
+                                    padding: '10px',
+                                    color: 'white',
+                                    borderRadius: '8px'
+                                }}
+                            />
                         </div>
 
+                        {/* RECEIPT */}
                         <div className="form-group">
-                            <label>Proof / Receipt</label>
-                            <input type="file" onChange={e => setFile(e.target.files[0])} accept="image/*" />
+                            <label>Receipt / Proof</label>
+                            <div
+                                onDragOver={e => {
+                                    e.preventDefault();
+                                    setIsDragging(true);
+                                }}
+                                onDragLeave={() => setIsDragging(false)}
+                                onDrop={handleFileDrop}
+                                onClick={() => document.getElementById('file-upload').click()}
+                                style={{
+                                    border: isDragging
+                                        ? '2px dashed var(--primary)'
+                                        : '2px dashed rgba(255,255,255,0.1)',
+                                    background: isDragging
+                                        ? 'rgba(76, 201, 240, 0.1)'
+                                        : 'rgba(255,255,255,0.02)',
+                                    borderRadius: '10px',
+                                    padding: '20px',
+                                    textAlign: 'center',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <input
+                                    type="file"
+                                    id="file-upload"
+                                    onChange={handleFileSelect}
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                />
+
+                                {previewUrl ? (
+                                    <img
+                                        src={previewUrl}
+                                        alt="Preview"
+                                        style={{ maxHeight: '100px', borderRadius: '5px' }}
+                                    />
+                                ) : (
+                                    <span>Click or Drag Receipt Here</span>
+                                )}
+                            </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                            <button type="submit" className="btn-primary full-width">{initialData ? 'Update' : 'Save'}</button>
+                        {/* ACTIONS */}
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                            <button type="submit" className="btn-primary full-width">
+                                {initialData ? 'Update Transaction' : 'Save Transaction'}
+                            </button>
 
-                            {initialData ? (
-                                <button type="button" onClick={handleDelete} className="btn-danger" style={{ background: 'var(--danger)', color: 'white', border: 'none', borderRadius: '5px', width: '100px' }}>Delete</button>
-                            ) : (
-                                <button type="button" onClick={saveAsTemplate} className="btn-secondary" title="Save as Preset" style={{ width: '50px' }}><i className="fa-solid fa-floppy-disk"></i></button>
+                            {initialData && (
+                                <button
+                                    type="button"
+                                    onClick={handleDelete}
+                                    className="btn-danger"
+                                    style={{ width: '60px' }}
+                                >
+                                    <i className="fa-solid fa-trash"></i>
+                                </button>
                             )}
                         </div>
                     </form>
