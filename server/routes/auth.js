@@ -6,13 +6,43 @@ const User = require('../models/User');
 const Category = require('../models/Category');
 const Transaction = require('../models/Transaction');
 
+
+// Check username/email availability
+router.post('/check-availability', async (req, res) => {
+    const { username, email } = req.body;
+    try {
+        const existingEmail = await User.findOne({ email });
+        if (existingEmail) {
+            return res.json({ available: false, msg: 'Email already in use' });
+        }
+
+        if (username) {
+            const existingUsername = await User.findOne({ username });
+            if (existingUsername) {
+                return res.json({ available: false, msg: 'Username already taken' });
+            }
+        }
+
+        res.json({ available: true });
+    } catch (err) {
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 // Register User
 router.post('/register', async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, username } = req.body;
     try {
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ msg: 'User already exists' });
-        user = new User({ name, email, password });
+
+        // Check if username is taken
+        if (username) {
+            const existingUsername = await User.findOne({ username });
+            if (existingUsername) return res.status(400).json({ msg: 'Username already taken' });
+        }
+
+        user = new User({ name, email, password, username });
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
         await user.save();

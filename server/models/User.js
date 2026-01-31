@@ -30,6 +30,7 @@ const UserSchema = new mongoose.Schema({
     goals: [{ type: String }],
     role: { type: String, default: 'user' },
     isPrivate: { type: Boolean, default: false },
+    useTransactionTemplates: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
 });
 

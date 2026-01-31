@@ -13,21 +13,21 @@ function SocialHub() {
 
     const fetchFriends = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/users/friends');
+            const res = await axios.get('/api/users/friends');
             setFriends(res.data);
         } catch (err) { console.error(err); }
     };
 
     const fetchAllUsers = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/users');
+            const res = await axios.get('/api/users');
             setSearchUsers(res.data);
         } catch (err) { console.error(err); }
     };
 
     const sendFriendRequest = async (id) => {
         try {
-            const res = await axios.post(`http://localhost:5000/api/users/request/${id}`);
+            const res = await axios.post(`/api/users/request/${id}`);
             // Remove from search list instantly
             setSearchUsers(searchUsers.filter(u => u._id !== id));
             alert("Friend request sent!");
@@ -39,7 +39,7 @@ function SocialHub() {
     const removeFriend = async (id) => {
         if (!window.confirm("Remove this friend?")) return;
         try {
-            const res = await axios.delete(`http://localhost:5000/api/users/friends/${id}`);
+            const res = await axios.delete(`/api/users/friends/${id}`);
             setFriends(res.data);
             fetchAllUsers();
         } catch (err) { console.error(err); }

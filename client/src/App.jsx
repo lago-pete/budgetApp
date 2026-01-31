@@ -8,6 +8,7 @@ import Dashboard from './components/Dashboard';
 import SocialHub from './components/SocialHub';
 import Challenges from './components/Challenges';
 import Profile from './components/Profile';
+import SettingsPage from './components/SettingsPage';
 import CategoriesPage from './components/CategoriesPage';
 import TransactionModal from './components/TransactionModal';
 import ManageCategoriesModal from './components/ManageCategoriesModal';
@@ -59,6 +60,10 @@ function Layout() {
                             <button className="btn-primary" onClick={handleOpenAddModal}>
                                 <i className="fa-solid fa-plus"></i> Add New
                             </button>
+                        ) : activeView === 'profile' ? (
+                            <button className="btn-primary" onClick={() => setActiveView('settings')}>
+                                <i className="fa-solid fa-gear"></i> Settings
+                            </button>
                         ) : null}
                     </div>
                 </header>
@@ -72,7 +77,8 @@ function Layout() {
                     )}
                     {activeView === 'social' && <SocialHub />}
                     {activeView === 'challenges' && <Challenges />}
-                    {activeView === 'profile' && <Profile user={user} />}
+                    {activeView === 'profile' && <Profile user={user} setActiveView={setActiveView} />}
+                    {activeView === 'settings' && <SettingsPage setActiveView={setActiveView} />}
                     {activeView === 'categories' && (
                         <CategoriesPage
                             key={refreshKey} // Refresh if modal updates

@@ -92,6 +92,15 @@ router.put('/privacy', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
+router.put('/templates', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        user.useTransactionTemplates = !user.useTransactionTemplates;
+        await user.save();
+        res.json({ useTransactionTemplates: user.useTransactionTemplates });
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
 router.get('/friends', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).populate('friends', 'name avatar xp level isPrivate');
@@ -160,6 +169,24 @@ router.get('/:id', auth, async (req, res) => {
         }
         res.json(user);
     } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// Update Profile (Name & Bio)
+router.put('/profile', auth, async (req, res) => {
+    try {
+        const { name, bio } = req.body;
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        if (name) user.name = name;
+        if (bio !== undefined) user.bio = bio;
+
+        await user.save();
+        res.json(user);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
 });
 
 module.exports = router;

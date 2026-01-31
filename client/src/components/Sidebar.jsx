@@ -46,7 +46,7 @@ function Sidebar({ activeView, setActiveView, user }) {
                         </div>
                     </div>
                 )}
-                <button onClick={logout} className="btn-secondary full-width" style={{ marginTop: '0.5rem', background: 'rgba(239, 68, 68, 0.15)', color: '#fca5a5', border: 'none', borderRadius: '12px', padding: '12px', fontWeight: '600' }}>
+                <button onClick={logout} className="btn-secondary full-width" style={{ marginTop: '0.5rem', background: 'rgba(239, 68, 68, 0.15)', color: '#fca5a5', border: 'none', borderRadius: '12px', padding: '12px', fontWeight: '600', cursor: 'pointer' }}>
                     <i className="fa-solid fa-right-from-bracket"></i> Sign Out
                 </button>
             </div>

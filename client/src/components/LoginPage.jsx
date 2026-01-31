@@ -9,6 +9,7 @@ function LoginPage() {
     const navigate = useNavigate();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const { identifier, password } = formData;
 
@@ -30,7 +31,7 @@ function LoginPage() {
     const handleDemoLogin = async () => {
         try {
             setLoading(true);
-            const res = await axios.post('http://localhost:5000/api/auth/demo');
+            const res = await axios.post('/api/auth/demo');
             localStorage.setItem('token', res.data.token);
             // Force reload or re-fetch context. Ideally context has a 'loadUser' but for now a reload works or passing token to login if modified.
             // Actually AuthContext.login does an API call. We manual token set here, so we should really use a helper or just force reload.
@@ -67,14 +68,29 @@ function LoginPage() {
                     </div>
                     <div className="form-group">
                         <label>Password</label>
-                        <input
-                            type="password"
-                            name="password"
-                            value={password}
-                            onChange={onChange}
-                            required
-                            placeholder="••••••"
-                        />
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                name="password"
+                                value={password}
+                                onChange={onChange}
+                                required
+                                placeholder="••••••"
+                                style={{ width: '100%', paddingRight: '40px' }}
+                            />
+                            <i
+                                className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '12px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    cursor: 'pointer',
+                                    color: 'var(--text-muted)'
+                                }}
+                            ></i>
+                        </div>
                     </div>
                     <button type="submit" className="btn-primary full-width" disabled={loading}>
                         {loading ? 'Signing in...' : 'Login'}
@@ -88,7 +104,7 @@ function LoginPage() {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <button onClick={handleDemoLogin} className="btn-secondary" disabled={loading} style={{ background: 'linear-gradient(45deg, #FF9966, #FF5E62)', border: 'none', color: 'white', fontWeight: 'bold', borderRadius: '16px', padding: '14px 32px', boxShadow: '0 4px 15px rgba(255, 102, 98, 0.3)' }}>
+                    <button onClick={handleDemoLogin} className="btn-secondary" disabled={loading} style={{ background: 'linear-gradient(45deg, #FF9966, #FF5E62)', border: 'none', color: 'white', fontWeight: 'bold', borderRadius: '16px', padding: '14px 32px', boxShadow: '0 4px 15px rgba(255, 102, 98, 0.3)', cursor: 'pointer' }}>
                         <i className="fa-solid fa-rocket" style={{ marginRight: '8px' }}></i> Try Demo Account
                     </button>
                 </div>

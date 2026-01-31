@@ -6,7 +6,7 @@ function Challenges() {
     const [exploreChallenges, setExploreChallenges] = useState([]);
 
     useEffect(() => {
-        axios.get('http://localhost:5000/api/challenges')
+        axios.get('/api/challenges')
             .then(res => {
                 const all = res.data;
                 // Split into active/explore mock logic

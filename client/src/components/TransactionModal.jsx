@@ -10,18 +10,23 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
     const [notes, setNotes] = useState(initialData?.notes || '');
     const [date, setDate] = useState(initialData?.date ? initialData.date.substring(0, 10) : new Date().toISOString().substring(0, 10));
     const [file, setFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(initialData?.proofUrl ? `http://localhost:5000${initialData.proofUrl}` : null);
+    const [previewUrl, setPreviewUrl] = useState(initialData?.proofUrl ? `${initialData.proofUrl}` : null);
     const [isDragging, setIsDragging] = useState(false);
     const [pastTitles, setPastTitles] = useState([]);
+    const [useTemplates, setUseTemplates] = useState(true);
+    const [allTransactions, setAllTransactions] = useState([]);
 
     const pickerRef = React.useRef(null);
 
     useEffect(() => {
         Promise.all([
-            axios.get('http://localhost:5000/api/categories'),
-            axios.get('http://localhost:5000/api/transactions') // Fetch for title history
-        ]).then(([catRes, txRes]) => {
+            axios.get('/api/categories'),
+            axios.get('/api/transactions'), // Fetch for title history
+            axios.get('/api/auth') // Get user settings
+        ]).then(([catRes, txRes, userRes]) => {
             setCategories(catRes.data);
+            setAllTransactions(txRes.data);
+            setUseTemplates(userRes.data.useTransactionTemplates ?? true);
 
             // Extract unique titles
             const titles = [...new Set(txRes.data.map(t => t.title))];
@@ -33,6 +38,23 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
             }
         }).catch(err => console.error(err));
     }, []);
+
+    // Auto-fill from template when title changes
+    useEffect(() => {
+        if (!useTemplates || !title || initialData) return;
+
+        // Find the most recent transaction with this title
+        const matchingTx = allTransactions
+            .filter(tx => tx.title.toLowerCase() === title.toLowerCase())
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+        if (matchingTx) {
+            setAmount(matchingTx.amount);
+            setSelectedCategory(matchingTx.category);
+            setType(matchingTx.type);
+            if (matchingTx.notes) setNotes(matchingTx.notes);
+        }
+    }, [title, useTemplates, allTransactions, initialData]);
 
     const handleFileDrop = (e) => {
         e.preventDefault();
@@ -60,7 +82,7 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
             const formData = new FormData();
             formData.append('proofImage', file);
             try {
-                const uploadRes = await axios.post('http://localhost:5000/api/uploads', formData, {
+                const uploadRes = await axios.post('/api/uploads', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 proofUrl = uploadRes.data.filePath;
@@ -79,9 +101,9 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
 
         try {
             if (initialData) {
-                await axios.put(`http://localhost:5000/api/transactions/${initialData._id}`, payload);
+                await axios.put(`/api/transactions/${initialData._id}`, payload);
             } else {
-                await axios.post('http://localhost:5000/api/transactions', payload);
+                await axios.post('/api/transactions', payload);
             }
             onSubmitSuccess();
         } catch (err) { console.error(err); }
@@ -90,7 +112,7 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
     const handleDelete = async () => {
         if (!window.confirm("Delete this transaction?")) return;
         try {
-            await axios.delete(`http://localhost:5000/api/transactions/${initialData._id}`);
+            await axios.delete(`/api/transactions/${initialData._id}`);
             onSubmitSuccess();
         } catch (err) { console.error(err); }
     };
@@ -207,7 +229,7 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
                                 list="title-suggestions"
                                 value={title}
                                 onChange={e => setTitle(e.target.value)}
-                                placeholder="e.g. Grocery Run"
+                                placeholder={selectedCategory ? selectedCategory : "defaults to selected category"}
                             />
                             <datalist id="title-suggestions">
                                 {pastTitles.map((t, i) => (
@@ -326,7 +348,7 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
                                     type="button"
                                     onClick={handleDelete}
                                     className="btn-danger"
-                                    style={{ width: '60px' }}
+                                    style={{ width: '60px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: 'none', borderRadius: '10px', cursor: 'pointer' }}
                                 >
                                     <i className="fa-solid fa-trash"></i>
                                 </button>

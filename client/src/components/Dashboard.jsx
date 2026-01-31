@@ -9,7 +9,7 @@ function Dashboard({ onEditTransaction }) {
     useEffect(() => {
         async function fetchData() {
             try {
-                const res = await axios.get('http://localhost:5000/api/transactions');
+                const res = await axios.get('/api/transactions');
                 setTransactions(res.data);
                 setLoading(false);
             } catch (err) { console.error(err); setLoading(false); }
@@ -115,7 +115,7 @@ function Dashboard({ onEditTransaction }) {
                         <li key={t._id} className="transaction-item compact" onClick={() => onEditTransaction && onEditTransaction(t)} style={{ cursor: 'pointer' }}>
                             <div className="t-main">
                                 {t.proofUrl ? (
-                                    <div className="t-icon small" style={{ backgroundImage: `url(http://localhost:5000${t.proofUrl})`, backgroundSize: 'cover' }}></div>
+                                    <div className="t-icon small" style={{ backgroundImage: `url(${t.proofUrl})`, backgroundSize: 'cover' }}></div>
                                 ) : (
                                     <div className="t-icon small"><i className="fa-solid fa-receipt"></i></div>
                                 )}

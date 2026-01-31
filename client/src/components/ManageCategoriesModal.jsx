@@ -19,7 +19,7 @@ function ManageCategoriesModal({ onClose, onBack }) {
     const fetchCategories = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/categories', { headers: { 'x-auth-token': token } });
+            const res = await axios.get('/api/categories', { headers: { 'x-auth-token': token } });
             setCategories(res.data);
             setLoading(false);
         } catch (err) { console.error(err); setLoading(false); }
@@ -27,9 +27,20 @@ function ManageCategoriesModal({ onClose, onBack }) {
 
     const handleCreate = async (e) => {
         e.preventDefault();
+
+        // Check for duplicate category name (case-insensitive)
+        const duplicateExists = categories.some(
+            cat => cat.name.toLowerCase() === newName.toLowerCase()
+        );
+
+        if (duplicateExists) {
+            alert(`Category "${newName}" already exists!`);
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/categories', {
+            await axios.post('/api/categories', {
                 name: newName, type: newType, color: newColor
             }, { headers: { 'x-auth-token': token } });
             setNewName('');
@@ -38,9 +49,19 @@ function ManageCategoriesModal({ onClose, onBack }) {
     };
 
     const handleUpdate = async (id) => {
+        // Check for duplicate category name (case-insensitive), excluding current category
+        const duplicateExists = categories.some(
+            cat => cat._id !== id && cat.name.toLowerCase() === editName.toLowerCase()
+        );
+
+        if (duplicateExists) {
+            alert(`Category "${editName}" already exists!`);
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`http://localhost:5000/api/categories/${id}`, {
+            await axios.put(`/api/categories/${id}`, {
                 name: editName, color: editColor
             }, { headers: { 'x-auth-token': token } });
             setEditingId(null);
@@ -53,7 +74,7 @@ function ManageCategoriesModal({ onClose, onBack }) {
         if (!window.confirm("Delete? Transactions moved to 'Uncategorized'.")) return;
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`http://localhost:5000/api/categories/${id}`, { headers: { 'x-auth-token': token } });
+            await axios.delete(`/api/categories/${id}`, { headers: { 'x-auth-token': token } });
             fetchCategories();
         } catch (err) { alert("Delete failed"); }
     };
@@ -75,13 +96,13 @@ function ManageCategoriesModal({ onClose, onBack }) {
 
                     <form onSubmit={handleCreate} style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                         <h4>Add New</h4>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                             <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name" required style={{ flex: 1 }} />
                             <select value={newType} onChange={e => setNewType(e.target.value)} style={{ width: '100px', background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
                                 <option value="expense">Expense</option>
                                 <option value="income">Income</option>
                             </select>
-                            <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} style={{ width: '50px', padding: 0, border: 'none', height: '40px' }} />
+                            <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '50%', cursor: 'pointer', overflow: 'hidden', flexShrink: 0 }} />
                             <button className="btn-primary" type="submit">Add</button>
                         </div>
                     </form>
@@ -92,9 +113,9 @@ function ManageCategoriesModal({ onClose, onBack }) {
                                 {editingId === cat._id ? (
                                     <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
                                         <input value={editName} onChange={e => setEditName(e.target.value)} style={{ flex: 1 }} />
-                                        <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} />
-                                        <button className="btn-success" onClick={() => handleUpdate(cat._id)} style={{ background: 'var(--success)', border: 'none', borderRadius: '5px', color: 'white', width: '30px' }}><i className="fa-solid fa-check"></i></button>
-                                        <button className="btn-secondary" onClick={() => setEditingId(null)} style={{ width: '30px' }}><i className="fa-solid fa-xmark"></i></button>
+                                        <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '50%', cursor: 'pointer', overflow: 'hidden' }} />
+                                        <button className="btn-success" onClick={() => handleUpdate(cat._id)} style={{ background: 'var(--success)', border: 'none', borderRadius: '5px', color: 'white', width: '30px', cursor: 'pointer' }}><i className="fa-solid fa-check"></i></button>
+                                        <button className="btn-secondary" onClick={() => setEditingId(null)} style={{ width: '30px', cursor: 'pointer' }}><i className="fa-solid fa-xmark"></i></button>
                                     </div>
                                 ) : (
                                     <>
@@ -104,8 +125,8 @@ function ManageCategoriesModal({ onClose, onBack }) {
                                             <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>({cat.type})</span>
                                         </div>
                                         <div style={{ display: 'flex', gap: '5px' }}>
-                                            <button className="btn-secondary" onClick={() => startEdit(cat)} style={{ padding: '5px' }}><i className="fa-solid fa-pen"></i></button>
-                                            <button className="btn-danger" onClick={() => handleDelete(cat._id)} style={{ background: 'rgba(255,59,48,0.2)', color: 'var(--danger)', padding: '5px', border: 'none' }}><i className="fa-solid fa-trash"></i></button>
+                                            <button className="btn-secondary" onClick={() => startEdit(cat)} style={{ padding: '5px', cursor: 'pointer' }}><i className="fa-solid fa-pen"></i></button>
+                                            <button className="btn-danger" onClick={() => handleDelete(cat._id)} style={{ background: 'rgba(255,59,48,0.2)', color: 'var(--danger)', padding: '5px', border: 'none', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i></button>
                                         </div>
                                     </>
                                 )}

@@ -24,8 +24,8 @@ function CategoriesPage({ onEditTransaction }) {
     const refreshData = async () => {
         try {
             const [catRes, txRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/categories'),
-                axios.get('http://localhost:5000/api/transactions')
+                axios.get('/api/categories'),
+                axios.get('/api/transactions')
             ]);
             setCategories(catRes.data);
             setAllTransactions(txRes.data);

@@ -2,32 +2,32 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import AchievementModal from './AchievementModal';
 
-function Profile({ user }) {
+function Profile({ user, setActiveView }) {
     const [selectedBadge, setSelectedBadge] = useState(null);
     const [goals, setGoals] = useState(user?.goals || []);
     const [newGoal, setNewGoal] = useState("");
-    const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
-    const [friends, setFriends] = useState([]);
-    const [friendRequests, setFriendRequests] = useState([]); // Incoming
-    const [bio, setBio] = useState(user?.bio || "");
-    const [isEditingBio, setIsEditingBio] = useState(false);
+    const [friendsCount, setFriendsCount] = useState(0);
 
-    // Sync initial user prop
+    // Editable fields
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [bio, setBio] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+
     useEffect(() => {
         if (user) {
-            setIsPrivate(user.isPrivate);
+            const nameParts = user.name?.split(' ') || [];
+            setFirstName(nameParts[0] || '');
+            setLastName(nameParts.slice(1).join(' ') || '');
             setBio(user.bio || "");
-            // Friend requests are populated in 'user', but we need to fetch them if updated
-            // Or simply refetch 'me'
-            if (user.friendRequests) setFriendRequests(user.friendRequests.filter(r => r.status === 'pending'));
-            fetchFriends();
+            fetchFriendsCount();
         }
     }, [user]);
 
-    const fetchFriends = async () => {
+    const fetchFriendsCount = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/users/friends');
-            setFriends(res.data);
+            const res = await axios.get('/api/users/friends');
+            setFriendsCount(res.data.length);
         } catch (err) { console.error(err); }
     };
 
@@ -36,115 +36,125 @@ function Profile({ user }) {
         if (!newGoal) return;
         setGoals([...goals, newGoal]);
         setNewGoal("");
-        // Ideally sync with backend
     };
 
-    const togglePrivacy = async () => {
+    const saveProfile = async () => {
         try {
-            const res = await axios.put('http://localhost:5000/api/users/privacy');
-            setIsPrivate(res.data.isPrivate);
-        } catch (err) { console.error(err); }
-    };
-
-    const saveBio = async () => {
-        try {
-            await axios.put('http://localhost:5000/api/users/bio', { bio });
-            setIsEditingBio(false);
-        } catch (err) { console.error(err); }
-    };
-
-    const respondToRequest = async (reqId, action) => {
-        try {
-            const endpoint = action === 'accept' ? 'accept' : 'reject';
-            await axios.post(`http://localhost:5000/api/users/request/${endpoint}/${reqId}`);
-            setFriendRequests(friendRequests.filter(r => r._id !== reqId));
-            if (action === 'accept') fetchFriends(); // Refresh friends list
-        } catch (err) { console.error(err); }
+            const fullName = `${firstName} ${lastName}`.trim();
+            await axios.put('/api/users/profile', {
+                name: fullName,
+                bio
+            });
+            setIsEditing(false);
+            // We should ideally trigger a refresh of the user object in AuthContext
+            // For now, let's assume it works or the user can refresh
+        } catch (err) {
+            console.error(err);
+            alert('Failed to update profile');
+        }
     };
 
     if (!user) return <div>Loading...</div>;
 
     return (
         <div className="view active-view slide-in">
-            <div className="profile-header glass-panel">
-                <div className="profile-main">
-                    <div className="profile-avatar-lg">
-                        <img src={user.avatar} alt="Profile" style={{ width: '120px', height: '120px', borderRadius: '50%', border: '3px solid var(--primary)' }} />
-                    </div>
-                    <div className="profile-details" style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <h2 className="profile-name">{user.name}</h2>
-                                <span style={{ opacity: 0.6 }}>@{user.username || 'user'}</span>
-                                <div onClick={togglePrivacy} style={{ cursor: 'pointer', background: isPrivate ? 'var(--danger)' : 'rgba(255,255,255,0.1)', padding: '5px 10px', borderRadius: '20px', fontSize: '0.8rem' }}>
-                                    {isPrivate ? <><i className="fa-solid fa-lock"></i> Private</> : <><i className="fa-solid fa-earth-americas"></i> Public</>}
-                                </div>
+            <div className="dashboard-grid">
+                <section className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+                    <div className="profile-edit-container" style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
+                        <div className="profile-avatar-section">
+                            <img src={user.avatar} alt="Profile" style={{ width: '150px', height: '150px', borderRadius: '50%', border: '4px solid var(--primary)', boxShadow: '0 8px 25px rgba(0,0,0,0.3)' }} />
+                            <div className="level-badge" style={{ marginTop: '-20px', position: 'relative', textAlign: 'center' }}>
+                                <span style={{ background: 'var(--primary)', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold' }}>Lvl {user.level}</span>
                             </div>
                         </div>
 
-                        {/* Bio Section */}
-                        <div style={{ marginTop: '10px', maxWidth: '600px' }}>
-                            {isEditingBio ? (
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <input value={bio} onChange={e => setBio(e.target.value)} style={{ flex: 1, padding: '5px', borderRadius: '5px', border: 'none' }} autoFocus />
-                                    <button onClick={saveBio} className="btn-primary" style={{ height: '30px', padding: '0 15px' }}>Save</button>
+                        <div className="profile-fields-section" style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <h3 style={{ margin: 0 }}>User Information</h3>
+                                <button
+                                    onClick={() => isEditing ? saveProfile() : setIsEditing(true)}
+                                    className={isEditing ? "btn-primary" : "btn-secondary"}
+                                    style={{ padding: '8px 20px' }}
+                                >
+                                    {isEditing ? <><i className="fa-solid fa-check"></i> Save Changes</> : <><i className="fa-solid fa-pen"></i> Edit Profile</>}
+                                </button>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                <div className="profile-field">
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Username</label>
+                                    <div style={{ padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'var(--text-muted)' }}>
+                                        @{user.username || 'user'}
+                                    </div>
                                 </div>
-                            ) : (
-                                <p className="profile-bio" onClick={() => setIsEditingBio(true)} style={{ cursor: 'pointer', borderBottom: '1px dashed rgba(255,255,255,0.3)', paddingBottom: '2px', display: 'inline-block' }}>
-                                    {bio || "Add a bio..."} <i className="fa-solid fa-pen" style={{ fontSize: '0.7rem', marginLeft: '5px', opacity: 0.5 }}></i>
-                                </p>
+                                <div className="profile-field">
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Email</label>
+                                    <div style={{ padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'var(--text-muted)' }}>
+                                        {user.email}
+                                    </div>
+                                </div>
+                                <div className="profile-field">
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>First Name</label>
+                                    {isEditing ? (
+                                        <input
+                                            value={firstName}
+                                            onChange={e => setFirstName(e.target.value)}
+                                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--primary)', borderRadius: '8px', color: 'white' }}
+                                        />
+                                    ) : (
+                                        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                                            {firstName}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="profile-field">
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Last Name</label>
+                                    {isEditing ? (
+                                        <input
+                                            value={lastName}
+                                            onChange={e => setLastName(e.target.value)}
+                                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--primary)', borderRadius: '8px', color: 'white' }}
+                                        />
+                                    ) : (
+                                        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                                            {lastName}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="profile-field" style={{ gridColumn: 'span 2' }}>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Bio</label>
+                                    {isEditing ? (
+                                        <textarea
+                                            value={bio}
+                                            onChange={e => setBio(e.target.value)}
+                                            rows={3}
+                                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--primary)', borderRadius: '8px', color: 'white', resize: 'vertical' }}
+                                        />
+                                    ) : (
+                                        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', minHeight: '60px' }}>
+                                            {bio || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No bio added yet.</span>}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="profile-field">
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Friends</label>
+                                    <div style={{ padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                                        {friendsCount} friends
+                                    </div>
+                                </div>
+                            </div>
+
+                            {isEditing && (
+                                <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                                    <button onClick={() => setIsEditing(false)} className="btn-secondary" style={{ marginRight: '10px' }}>Cancel</button>
+                                </div>
                             )}
                         </div>
-
-                        <div className="level-bar-container">
-                            <span className="level-badge">Lvl {user.level} Saver</span>
-                        </div>
                     </div>
-                </div>
-            </div>
-
-            <div className="dashboard-grid">
-                <section className="friends-section glass-panel">
-                    <h3><i className="fa-solid fa-user-group"></i> Friend Requests ({friendRequests.length})</h3>
-                    {friendRequests.length > 0 ? (
-                        <ul className="transaction-list" style={{ marginBottom: '2rem' }}>
-                            {friendRequests.map(req => (
-                                <li key={req._id} className="transaction-item">
-                                    <div className="t-info">
-                                        <img src={req.from.avatar} style={{ width: '30px', height: '30px', borderRadius: '50%' }} />
-                                        <span>{req.from.name}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '5px' }}>
-                                        <button onClick={() => respondToRequest(req._id, 'accept')} style={{ background: 'var(--success)', border: 'none', borderRadius: '5px', padding: '5px 10px', color: 'white', cursor: 'pointer' }}>Accept</button>
-                                        <button onClick={() => respondToRequest(req._id, 'reject')} style={{ background: 'var(--danger)', border: 'none', borderRadius: '5px', padding: '5px 10px', color: 'white', cursor: 'pointer' }}><i className="fa-solid fa-xmark"></i></button>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : <div style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>No pending requests.</div>}
-
-                    <h3><i className="fa-solid fa-users"></i> My Friends ({friends.length})</h3>
-                    <ul className="transaction-list">
-                        {friends.length === 0 ? <li style={{ color: 'var(--text-muted)' }}>No friends added yet. Go to Social Hub!</li> : null}
-                        {friends.map(f => (
-                            <li key={f._id} className="transaction-item">
-                                <div className="t-info">
-                                    <img src={f.avatar} style={{ width: '30px', height: '30px', borderRadius: '50%' }} />
-                                    <div className="t-details">
-                                        <span>{f.name}</span>
-                                        {/* Show Bio on hover or click? For now just name/level */}
-                                    </div>
-                                </div>
-                                <span className="level-badge small">Lvl {f.level}</span>
-                            </li>
-                        ))}
-                    </ul>
                 </section>
 
                 <section className="badges-section glass-panel">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h3><i className="fa-solid fa-medal"></i> Achievements</h3>
-                    </div>
+                    <h3><i className="fa-solid fa-medal"></i> Achievements</h3>
                     <div className="badges-grid">
                         {user.badges.map((b, i) => (
                             <div key={i} className="badge-item" onClick={() => setSelectedBadge(b)} style={{ cursor: 'pointer' }}>
