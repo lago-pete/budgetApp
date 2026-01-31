@@ -101,6 +101,18 @@ router.put('/templates', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
+router.put('/settings', auth, async (req, res) => {
+    try {
+        const { verifyToDelete } = req.body;
+        const user = await User.findById(req.user.id);
+        if (typeof verifyToDelete === 'boolean') {
+            user.verifyToDelete = verifyToDelete;
+        }
+        await user.save();
+        res.json(user);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
 router.get('/friends', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).populate('friends', 'name avatar xp level isPrivate');

@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+import { AuthContext } from '../context/AuthContext';
+
 function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onManageCategories }) {
+    const { user } = React.useContext(AuthContext); // Get user setting
     const [type, setType] = useState(initialData?.type || 'expense');
     const [amount, setAmount] = useState(initialData?.amount || '');
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(initialData?.category || '');
     const [title, setTitle] = useState(initialData?.title || '');
     const [notes, setNotes] = useState(initialData?.notes || '');
-    const [date, setDate] = useState(initialData?.date ? initialData.date.substring(0, 10) : new Date().toISOString().substring(0, 10));
+    const [date, setDate] = useState(initialData?.date ? initialData.date.substring(0, 10) : (() => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    })());
     const [file, setFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(initialData?.proofUrl ? `${initialData.proofUrl}` : null);
     const [isDragging, setIsDragging] = useState(false);
@@ -110,7 +119,7 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
     };
 
     const handleDelete = async () => {
-        if (!window.confirm("Delete this transaction?")) return;
+        if (user?.verifyToDelete && !window.confirm("Delete this transaction?")) return;
         try {
             await axios.delete(`/api/transactions/${initialData._id}`);
             onSubmitSuccess();

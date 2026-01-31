@@ -11,13 +11,13 @@ const Transaction = require('../models/Transaction');
 router.post('/check-availability', async (req, res) => {
     const { username, email } = req.body;
     try {
-        const existingEmail = await User.findOne({ email });
+        const existingEmail = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
         if (existingEmail) {
             return res.json({ available: false, msg: 'Email already in use' });
         }
 
         if (username) {
-            const existingUsername = await User.findOne({ username });
+            const existingUsername = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
             if (existingUsername) {
                 return res.json({ available: false, msg: 'Username already taken' });
             }
@@ -33,12 +33,12 @@ router.post('/check-availability', async (req, res) => {
 router.post('/register', async (req, res) => {
     const { name, email, password, username } = req.body;
     try {
-        let user = await User.findOne({ email });
+        let user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
         if (user) return res.status(400).json({ msg: 'User already exists' });
 
         // Check if username is taken
         if (username) {
-            const existingUsername = await User.findOne({ username });
+            const existingUsername = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
             if (existingUsername) return res.status(400).json({ msg: 'Username already taken' });
         }
 
@@ -73,7 +73,10 @@ router.post('/login', async (req, res) => {
     const { identifier, password } = req.body;
     try {
         let user = await User.findOne({
-            $or: [{ email: identifier }, { username: identifier }]
+            $or: [
+                { email: { $regex: new RegExp(`^${identifier}$`, 'i') } },
+                { username: { $regex: new RegExp(`^${identifier}$`, 'i') } }
+            ]
         });
 
         if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });

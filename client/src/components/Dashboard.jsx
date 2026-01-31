@@ -24,8 +24,9 @@ function Dashboard({ onEditTransaction }) {
 
     // YTD Logic
     const ytdTransactions = transactions.filter(t => {
-        const d = new Date(t.date);
-        return d.getFullYear() === currentYear && d <= now;
+        const [y, m, d] = t.date.substring(0, 10).split('-').map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        return y === currentYear && dateObj <= now;
     });
     const ytdIncome = ytdTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const ytdExpenses = ytdTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
@@ -33,8 +34,8 @@ function Dashboard({ onEditTransaction }) {
 
     // Monthly Logic
     const monthlyTransactions = transactions.filter(t => {
-        const d = new Date(t.date);
-        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+        const [y, m, d] = t.date.substring(0, 10).split('-').map(Number);
+        return y === currentYear && m - 1 === currentMonth;
     });
     const monthlyIncome = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const monthlyExpenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
@@ -125,7 +126,7 @@ function Dashboard({ onEditTransaction }) {
                                 </div>
                             </div>
 
-                            <div className="t-date">{new Date(t.date).toLocaleDateString()}</div>
+                            <div className="t-date">{new Date(t.date).getUTCFullYear()}-{String(new Date(t.date).getUTCMonth() + 1).padStart(2, '0')}-{String(new Date(t.date).getUTCDate()).padStart(2, '0')}</div>
                             <div className="t-cat"><span className="cat-pill">{t.category}</span></div>
 
                             <div className={`t-amount ${t.type}`} style={{ textAlign: 'right' }}>

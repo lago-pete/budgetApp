@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+import { AuthContext } from '../context/AuthContext';
+
 function ManageCategoriesModal({ onClose, onBack }) {
+    const { user } = React.useContext(AuthContext);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null);
@@ -71,7 +74,7 @@ function ManageCategoriesModal({ onClose, onBack }) {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Delete? Transactions moved to 'Uncategorized'.")) return;
+        if (user?.verifyToDelete && !window.confirm("Delete? Transactions moved to 'Uncategorized'.")) return;
         try {
             const token = localStorage.getItem('token');
             await axios.delete(`/api/categories/${id}`, { headers: { 'x-auth-token': token } });

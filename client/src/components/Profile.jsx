@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import AchievementModal from './AchievementModal';
+import { AuthContext } from '../context/AuthContext';
 
 function Profile({ user, setActiveView }) {
+    const { fetchUser } = React.useContext(AuthContext); // Ensure fetchUser is available
     const [selectedBadge, setSelectedBadge] = useState(null);
     const [goals, setGoals] = useState(user?.goals || []);
     const [newGoal, setNewGoal] = useState("");
@@ -12,17 +14,34 @@ function Profile({ user, setActiveView }) {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [bio, setBio] = useState('');
-    const [isEditing, setIsEditing] = useState(false);
+
+    // State tracking
+    const [hasChanges, setHasChanges] = useState(false);
+    const [initialState, setInitialState] = useState({ firstName: '', lastName: '', bio: '' });
 
     useEffect(() => {
         if (user) {
             const nameParts = user.name?.split(' ') || [];
-            setFirstName(nameParts[0] || '');
-            setLastName(nameParts.slice(1).join(' ') || '');
-            setBio(user.bio || "");
+            const initial = {
+                firstName: nameParts[0] || '',
+                lastName: nameParts.slice(1).join(' ') || '',
+                bio: user.bio || ""
+            };
+            setInitialState(initial);
+            setFirstName(initial.firstName);
+            setLastName(initial.lastName);
+            setBio(initial.bio);
             fetchFriendsCount();
         }
     }, [user]);
+
+    // Check for changes
+    useEffect(() => {
+        const changed = firstName !== initialState.firstName ||
+            lastName !== initialState.lastName ||
+            bio !== initialState.bio;
+        setHasChanges(changed);
+    }, [firstName, lastName, bio, initialState]);
 
     const fetchFriendsCount = async () => {
         try {
@@ -38,6 +57,12 @@ function Profile({ user, setActiveView }) {
         setNewGoal("");
     };
 
+    const handleCancel = () => {
+        setFirstName(initialState.firstName);
+        setLastName(initialState.lastName);
+        setBio(initialState.bio);
+    };
+
     const saveProfile = async () => {
         try {
             const fullName = `${firstName} ${lastName}`.trim();
@@ -45,9 +70,8 @@ function Profile({ user, setActiveView }) {
                 name: fullName,
                 bio
             });
-            setIsEditing(false);
-            // We should ideally trigger a refresh of the user object in AuthContext
-            // For now, let's assume it works or the user can refresh
+            await fetchUser(); // Refresh user context
+            // Initial state will update via the useEffect on [user]
         } catch (err) {
             console.error(err);
             alert('Failed to update profile');
@@ -71,13 +95,6 @@ function Profile({ user, setActiveView }) {
                         <div className="profile-fields-section" style={{ flex: 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                                 <h3 style={{ margin: 0 }}>User Information</h3>
-                                <button
-                                    onClick={() => isEditing ? saveProfile() : setIsEditing(true)}
-                                    className={isEditing ? "btn-primary" : "btn-secondary"}
-                                    style={{ padding: '8px 20px' }}
-                                >
-                                    {isEditing ? <><i className="fa-solid fa-check"></i> Save Changes</> : <><i className="fa-solid fa-pen"></i> Edit Profile</>}
-                                </button>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
@@ -95,46 +112,28 @@ function Profile({ user, setActiveView }) {
                                 </div>
                                 <div className="profile-field">
                                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>First Name</label>
-                                    {isEditing ? (
-                                        <input
-                                            value={firstName}
-                                            onChange={e => setFirstName(e.target.value)}
-                                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--primary)', borderRadius: '8px', color: 'white' }}
-                                        />
-                                    ) : (
-                                        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                                            {firstName}
-                                        </div>
-                                    )}
+                                    <input
+                                        value={firstName}
+                                        onChange={e => setFirstName(e.target.value)}
+                                        style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }}
+                                    />
                                 </div>
                                 <div className="profile-field">
                                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Last Name</label>
-                                    {isEditing ? (
-                                        <input
-                                            value={lastName}
-                                            onChange={e => setLastName(e.target.value)}
-                                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--primary)', borderRadius: '8px', color: 'white' }}
-                                        />
-                                    ) : (
-                                        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                                            {lastName}
-                                        </div>
-                                    )}
+                                    <input
+                                        value={lastName}
+                                        onChange={e => setLastName(e.target.value)}
+                                        style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }}
+                                    />
                                 </div>
                                 <div className="profile-field" style={{ gridColumn: 'span 2' }}>
                                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Bio</label>
-                                    {isEditing ? (
-                                        <textarea
-                                            value={bio}
-                                            onChange={e => setBio(e.target.value)}
-                                            rows={3}
-                                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--primary)', borderRadius: '8px', color: 'white', resize: 'vertical' }}
-                                        />
-                                    ) : (
-                                        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', minHeight: '60px' }}>
-                                            {bio || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No bio added yet.</span>}
-                                        </div>
-                                    )}
+                                    <textarea
+                                        value={bio}
+                                        onChange={e => setBio(e.target.value)}
+                                        rows={3}
+                                        style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', resize: 'vertical' }}
+                                    />
                                 </div>
                                 <div className="profile-field">
                                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Friends</label>
@@ -144,11 +143,15 @@ function Profile({ user, setActiveView }) {
                                 </div>
                             </div>
 
-                            {isEditing && (
-                                <div style={{ marginTop: '20px', textAlign: 'right' }}>
-                                    <button onClick={() => setIsEditing(false)} className="btn-secondary" style={{ marginRight: '10px' }}>Cancel</button>
-                                </div>
-                            )}
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', minHeight: '40px' }}>
+                                {hasChanges && (
+                                    <>
+                                        <button onClick={handleCancel} className="btn-secondary" style={{ padding: '8px 20px', cursor: 'pointer' }}>Cancel</button>
+                                        <button onClick={saveProfile} className="btn-primary" style={{ cursor: 'pointer' }}><i className="fa-solid fa-check"></i> Save Changes</button>
+                                    </>
+                                )}
+                            </div>
+
                         </div>
                     </div>
                 </section>

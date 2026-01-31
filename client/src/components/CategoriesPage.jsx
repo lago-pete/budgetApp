@@ -643,7 +643,7 @@ function CategoriesPage({ onEditTransaction }) {
                         return (
                             <li key={t._id} className="transaction-item compact" onClick={() => onEditTransaction && onEditTransaction(t)} style={{ cursor: 'pointer', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', alignItems: 'center', padding: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <div className="t-main"><h4 style={{ margin: 0, fontSize: '0.9rem' }}>{t.title}</h4></div>
-                                <div className="t-date" style={{ fontSize: '0.9rem' }}>{new Date(t.date).toLocaleDateString()}</div>
+                                <div className="t-date" style={{ fontSize: '0.9rem' }}>{new Date(t.date).getUTCFullYear()}-{String(new Date(t.date).getUTCMonth() + 1).padStart(2, '0')}-{String(new Date(t.date).getUTCDate()).padStart(2, '0')}</div>
                                 <div className="t-cat"><span className="cat-pill" style={{ background: catColor + '30', color: catColor, border: `1px solid ${catColor}50`, padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem' }}>{t.category}</span></div>
                                 <div className={`t-amount ${t.type}`} style={{ textAlign: 'right' }}>{t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}</div>
                             </li>
