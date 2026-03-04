@@ -88,6 +88,25 @@ async function seedData() {
         await Transaction.updateMany({ category: 'Other' }, { category: 'Uncategorized' });
         console.log(`Migrated ${otherCount} transactions from 'Other' to 'Uncategorized'`);
     }
+
+    // Seed Admin User
+    const adminExists = await User.findOne({ username: 'admin' });
+    if (!adminExists) {
+        const bcrypt = require('bcryptjs');
+        const salt = await bcrypt.genSalt(10);
+        const hashedAdminPassword = await bcrypt.hash('admin', salt);
+
+        const admin = new User({
+            name: 'System Admin',
+            email: 'admin@wealthflow.com',
+            username: 'admin',
+            password: hashedAdminPassword,
+            role: 'admin',
+            avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Admin'
+        });
+        await admin.save();
+        console.log('Seed: Admin user created');
+    }
 }
 
 app.listen(PORT, () => {

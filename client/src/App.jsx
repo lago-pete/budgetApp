@@ -13,6 +13,8 @@ import CategoriesPage from './components/CategoriesPage';
 import TransactionModal from './components/TransactionModal';
 import ManageCategoriesModal from './components/ManageCategoriesModal';
 import NotificationsDropdown from './components/NotificationsDropdown';
+import AdminLoginPage from './components/AdminLoginPage';
+import AdminDashboard from './components/AdminDashboard';
 
 // Protected Route Wrapper
 const PrivateRoute = () => {
@@ -105,6 +107,13 @@ function Layout() {
     );
 }
 
+// Admin Private Route wrapper
+const AdminPrivateRoute = () => {
+    const { user, loading } = useContext(AuthContext);
+    if (loading) return <div>Loading...</div>;
+    return user && user.role === 'admin' ? <Outlet /> : <Navigate to="/admin" />;
+};
+
 function App() {
     return (
         <AuthProvider>
@@ -112,6 +121,12 @@ function App() {
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/admin" element={<AdminLoginPage />} />
+
+                    <Route element={<AdminPrivateRoute />}>
+                        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    </Route>
+
                     <Route element={<PrivateRoute />}>
                         <Route path="/*" element={<Layout />} />
                     </Route>

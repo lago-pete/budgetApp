@@ -15,7 +15,46 @@ const auth = (req, res, next) => {
     }
 };
 
-// ... existing routes (search, bio, friends) ...
+const adminAuth = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (user.role !== 'admin') {
+            return res.status(403).json({ msg: 'Access denied: Admin only' });
+        }
+        next();
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+};
+
+
+// Get All Users (Admin Only)
+router.get('/admin/all', [auth, adminAuth], async (req, res) => {
+    try {
+        const users = await User.find().select('-password').sort({ createdAt: -1 });
+        res.json(users);
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+});
+
+// Delete User (Admin Only)
+router.delete('/admin/:id', [auth, adminAuth], async (req, res) => {
+    try {
+        const userToDelete = await User.findById(req.params.id);
+        if (!userToDelete) return res.status(404).json({ msg: 'User not found' });
+
+        // Prevent admin from deleting themselves
+        if (userToDelete.id === req.user.id) {
+            return res.status(400).json({ msg: 'Admins cannot delete themselves' });
+        }
+
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ msg: 'User deleted successfully' });
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+});
 // Search Users
 router.get('/', auth, async (req, res) => {
     try {
