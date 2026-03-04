@@ -74,7 +74,6 @@ function ManageCategoriesModal({ onClose, onBack }) {
     };
 
     const handleDelete = async (id) => {
-        if (user?.verifyToDelete && !window.confirm("Delete? Transactions moved to 'Uncategorized'.")) return;
         try {
             const token = localStorage.getItem('token');
             await axios.delete(`/api/categories/${id}`, { headers: { 'x-auth-token': token } });

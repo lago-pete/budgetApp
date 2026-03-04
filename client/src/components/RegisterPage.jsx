@@ -9,6 +9,7 @@ function RegisterPage() {
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [accountType, setAccountType] = useState('premium'); // 'premium' or 'basic'
     const [confirmPassword, setConfirmPassword] = useState('');
     const [step, setStep] = useState(1); // 1 = initial form, 2 = confirm password
     const [error, setError] = useState('');
@@ -60,7 +61,8 @@ function RegisterPage() {
 
         try {
             const fullName = `${firstName} ${lastName}`;
-            await register(fullName, email, password, username);
+            const isPremium = accountType === 'premium';
+            await register(fullName, email, password, username, isPremium);
             navigate('/');
         } catch (err) {
             setError(err.response?.data?.msg || "Registration failed");
@@ -160,6 +162,46 @@ function RegisterPage() {
                                         color: 'var(--text-muted)'
                                     }}
                                 ></i>
+                            </div>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                            <label>Account Type</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '8px' }}>
+                                <div
+                                    onClick={() => setAccountType('premium')}
+                                    className={`glass-panel ${accountType === 'premium' ? 'active' : ''}`}
+                                    style={{
+                                        padding: '0.75rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                        border: accountType === 'premium' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+                                        background: accountType === 'premium' ? 'rgba(99, 102, 241, 0.1)' : 'transparent'
+                                    }}
+                                >
+                                    <i className="fa-solid fa-crown" style={{ display: 'block', fontSize: '1.2rem', marginBottom: '4px', color: accountType === 'premium' ? 'var(--primary)' : 'var(--text-muted)' }}></i>
+                                    <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Premium</div>
+                                </div>
+                                <div
+                                    onClick={() => setAccountType('basic')}
+                                    className={`glass-panel ${accountType === 'basic' ? 'active' : ''}`}
+                                    style={{
+                                        padding: '0.75rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                        border: accountType === 'basic' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+                                        background: accountType === 'basic' ? 'rgba(99, 102, 241, 0.1)' : 'transparent'
+                                    }}
+                                >
+                                    <i className="fa-solid fa-user" style={{ display: 'block', fontSize: '1.2rem', marginBottom: '4px', color: accountType === 'basic' ? 'var(--primary)' : 'var(--text-muted)' }}></i>
+                                    <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Basic</div>
+                                </div>
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                                {accountType === 'premium' ? (
+                                    <span><i className="fa-solid fa-circle-check" style={{ color: 'var(--success)' }}></i> <strong>Premium Plan</strong>: Full Social Hub and Challenges enabled.</span>
+                                ) : (
+                                    <span><i className="fa-solid fa-circle-info"></i> <strong>Basic Plan</strong>: Social features are disabled for your privacy.</span>
+                                )}
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>

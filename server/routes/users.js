@@ -39,7 +39,7 @@ router.get('/', auth, async (req, res) => {
         const currentUser = await User.findById(req.user.id);
         const users = await User.find({
             _id: { $ne: req.user.id, $nin: currentUser.friends }
-        }).select('name avatar xp level isPrivate username');
+        }).select('name avatar xp level isPremium username');
         res.json(users);
     } catch (err) { res.status(500).send('Server Error'); }
 });
@@ -100,14 +100,6 @@ router.post('/request/reject/:requestId', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
-router.put('/privacy', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        user.isPrivate = !user.isPrivate;
-        await user.save();
-        res.json({ isPrivate: user.isPrivate });
-    } catch (err) { res.status(500).send('Server Error'); }
-});
 
 router.put('/templates', auth, async (req, res) => {
     try {
@@ -120,11 +112,7 @@ router.put('/templates', auth, async (req, res) => {
 
 router.put('/settings', auth, async (req, res) => {
     try {
-        const { verifyToDelete } = req.body;
         const user = await User.findById(req.user.id);
-        if (typeof verifyToDelete === 'boolean') {
-            user.verifyToDelete = verifyToDelete;
-        }
         await user.save();
         res.json(user);
     } catch (err) { res.status(500).send('Server Error'); }
@@ -132,7 +120,7 @@ router.put('/settings', auth, async (req, res) => {
 
 router.get('/friends', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).populate('friends', 'name avatar xp level isPrivate');
+        const user = await User.findById(req.user.id).populate('friends', 'name avatar xp level isPremium');
         res.json(user.friends);
     } catch (err) { res.status(500).send('Server Error'); }
 });
@@ -186,14 +174,14 @@ router.get('/:id', auth, async (req, res) => {
         const currentUser = await User.findById(req.user.id);
         const isFriend = currentUser.friends.includes(req.params.id);
 
-        if (req.params.id !== req.user.id && user.isPrivate && !isFriend) {
+        if (req.params.id !== req.user.id && !user.isPremium && !isFriend) {
             return res.json({
                 _id: user._id,
                 name: user.name,
                 avatar: user.avatar,
-                isPrivate: true,
+                isPremium: false,
                 bio: user.bio,
-                msg: "This profile is private."
+                msg: "This profile is basic and private."
             });
         }
         res.json(user);

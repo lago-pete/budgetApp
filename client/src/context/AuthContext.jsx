@@ -40,8 +40,8 @@ export const AuthProvider = ({ children }) => {
         setUser(res.data.user);
     };
 
-    const register = async (name, email, password, username) => {
-        const res = await axios.post('/api/auth/register', { name, email, password, username });
+    const register = async (name, email, password, username, isPremium) => {
+        const res = await axios.post('/api/auth/register', { name, email, password, username, isPremium });
         setToken(res.data.token);
         setUser(res.data.user);
     };

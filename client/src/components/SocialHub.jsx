@@ -37,7 +37,6 @@ function SocialHub() {
     };
 
     const removeFriend = async (id) => {
-        if (!window.confirm("Remove this friend?")) return;
         try {
             const res = await axios.delete(`/api/users/friends/${id}`);
             setFriends(res.data);

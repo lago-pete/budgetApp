@@ -9,7 +9,6 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('users');
-    const [deleteModal, setDeleteModal] = useState({ show: false, userId: null, userName: '' });
     const [challengeModal, setChallengeModal] = useState({ show: false, challenge: null });
     const [challengeFormData, setChallengeFormData] = useState({ title: '', description: '', reward: '', isActive: true });
 
@@ -61,21 +60,15 @@ const AdminDashboard = () => {
     };
 
     // User Delete
-    const confirmDeleteUser = (u) => {
-        setDeleteModal({ show: true, userId: u._id, userName: u.name });
-    };
-
-    const handleDeleteUser = async () => {
+    const handleDeleteUser = async (userId) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`/api/users/admin/${deleteModal.userId}`, {
+            await axios.delete(`/api/users/admin/${userId}`, {
                 headers: { 'x-auth-token': token }
             });
-            setDeleteModal({ show: false, userId: null, userName: '' });
             fetchUsers();
         } catch (err) {
             setError(err.response?.data?.msg || 'Failed to delete user');
-            setDeleteModal({ show: false, userId: null, userName: '' });
         }
     };
 
@@ -113,7 +106,6 @@ const AdminDashboard = () => {
     };
 
     const handleDeleteChallenge = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this challenge?')) return;
         try {
             const token = localStorage.getItem('token');
             await axios.delete(`/api/challenges/${id}`, {
@@ -201,7 +193,7 @@ const AdminDashboard = () => {
                                         <td style={{ padding: '1rem 1.5rem' }}>
                                             {u.role !== 'admin' && (
                                                 <button
-                                                    onClick={() => confirmDeleteUser(u)}
+                                                    onClick={() => handleDeleteUser(u._id)}
                                                     className="btn-icon"
                                                     style={{ width: '32px', height: '32px', color: 'var(--danger)' }}
                                                 >
@@ -281,26 +273,6 @@ const AdminDashboard = () => {
                 </button>
             </div>
 
-            {/* USER DELETE MODAL */}
-            {deleteModal.show && (
-                <div className="modal-overlay">
-                    <div className="modal glass-panel">
-                        <div className="modal-header">
-                            <h2 style={{ margin: 0 }}>Delete User?</h2>
-                            <button className="close-modal" onClick={() => setDeleteModal({ show: false, userId: null, userName: '' })}>
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Are you sure you want to delete <strong>{deleteModal.userName}</strong>? This action cannot be undone.</p>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                                <button onClick={() => setDeleteModal({ show: false, userId: null, userName: '' })} className="btn-icon" style={{ width: 'auto', padding: '0 1rem' }}>Cancel</button>
-                                <button onClick={handleDeleteUser} className="btn-primary" style={{ background: 'var(--danger)' }}>Yes, Delete</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* CHALLENGE MODAL */}
             {challengeModal.show && (

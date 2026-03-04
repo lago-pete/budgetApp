@@ -29,9 +29,8 @@ const UserSchema = new mongoose.Schema({
     }],
     goals: [{ type: String }],
     role: { type: String, default: 'user' },
-    isPrivate: { type: Boolean, default: false },
+    isPremium: { type: Boolean, default: true },
     useTransactionTemplates: { type: Boolean, default: true },
-    verifyToDelete: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
 });
 

@@ -9,7 +9,12 @@ function Sidebar({ activeView, setActiveView, user }) {
         { id: 'categories', icon: 'fa-chart-pie', label: 'Categories' },
         { id: 'social', icon: 'fa-users', label: 'Social Hub', badge: 3 },
         { id: 'challenges', icon: 'fa-trophy', label: 'Challenges' }
-    ];
+    ].filter(item => {
+        if (!user?.isPremium && (item.id === 'social' || item.id === 'challenges')) {
+            return false;
+        }
+        return true;
+    });
 
     return (
         <nav className="sidebar glass-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
