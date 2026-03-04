@@ -20,6 +20,7 @@ import AdminDashboard from './components/AdminDashboard';
 const PrivateRoute = () => {
     const { user, loading } = useContext(AuthContext);
     if (loading) return <div>Loading...</div>;
+    if (user && user.role === 'admin') return <Navigate to="/admin/dashboard" />;
     return user ? <Outlet /> : <Navigate to="/login" />;
 };
 
@@ -111,6 +112,7 @@ function Layout() {
 const AdminPrivateRoute = () => {
     const { user, loading } = useContext(AuthContext);
     if (loading) return <div>Loading...</div>;
+    if (user && user.role !== 'admin') return <Navigate to="/" />;
     return user && user.role === 'admin' ? <Outlet /> : <Navigate to="/admin" />;
 };
 

@@ -267,11 +267,6 @@ const AdminDashboard = () => {
                 </div>
             )}
 
-            <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-                <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: '500' }}>
-                    Go to Application Dashboard
-                </button>
-            </div>
 
 
             {/* CHALLENGE MODAL */}
