@@ -1,108 +1,63 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 
 function SettingsPage({ setActiveView }) {
     const { user, fetchUser } = useContext(AuthContext);
-    const [useTransactionTemplates, setUseTransactionTemplates] = useState(true);
-    const [hasChanges, setHasChanges] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    // Initial State to revert to
-    const [initialState, setInitialState] = useState({ useTransactionTemplates: true });
-
-    useEffect(() => {
-        if (user) {
-            setUseTransactionTemplates(user.useTransactionTemplates);
-            setInitialState({
-                useTransactionTemplates: user.useTransactionTemplates
-            });
-        }
-    }, [user]);
-
-    // Check for changes
-    useEffect(() => {
-        const changed = useTransactionTemplates !== initialState.useTransactionTemplates;
-        setHasChanges(changed);
-    }, [useTransactionTemplates, initialState]);
-
-    const handleSave = async () => {
+    const handleToggleStatus = async () => {
+        setLoading(true);
         try {
-            if (useTransactionTemplates !== initialState.useTransactionTemplates) {
-                await axios.put('/api/users/templates');
-            }
-
-            // Update initial state after save
-            await fetchUser();
-            setInitialState({ useTransactionTemplates });
-            setHasChanges(false);
+            await axios.put('/api/users/status');
+            await fetchUser(); // Refresh user state
         } catch (err) {
             console.error(err);
-            alert("Failed to save settings");
+            alert("Failed to update account status");
+        } finally {
+            setLoading(false);
         }
-    };
-
-    const handleCancel = () => {
-        setUseTransactionTemplates(initialState.useTransactionTemplates);
     };
 
     if (!user) return <div className="view active-view slide-in">Loading...</div>;
+
+    const isPremium = user.isPremium;
 
     return (
         <div className="view active-view slide-in">
             <div className="dashboard-grid">
                 <section className="glass-panel" style={{ gridColumn: '1 / -1' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <h3 style={{ margin: 0 }}>Application Settings</h3>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            {hasChanges && (
-                                <>
-                                    <button onClick={handleCancel} className="btn-secondary" style={{ padding: '8px 20px', cursor: 'pointer' }}>Cancel</button>
-                                    <button onClick={handleSave} className="btn-primary" style={{ cursor: 'pointer' }}>Save Changes</button>
-                                </>
-                            )}
-                        </div>
+                        <h3 style={{ margin: 0 }}>Manage Account Status</h3>
                     </div>
 
                     <div style={{ padding: '0 10px' }}>
+                        <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px', marginTop: '20px' }}>Subscription</h4>
 
-                        <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px', marginTop: '20px' }}>Transactions</h4>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0' }}>
                             <div>
-                                <div style={{ fontWeight: '600', marginBottom: '5px' }}>Transaction Templates</div>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Auto-fill transaction details based on title history</div>
+                                <div style={{ fontWeight: '600', marginBottom: '5px' }}>Current Plan: {isPremium ? 'Premium' : 'Basic'}</div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                    {isPremium
+                                        ? "You currently have access to all premium features."
+                                        : "Upgrade to premium to unlock exclusive features and analytics."}
+                                </div>
                             </div>
-                            <div
-                                onClick={() => setUseTransactionTemplates(!useTransactionTemplates)}
-                                style={{
-                                    width: '50px',
-                                    height: '28px',
-                                    background: useTransactionTemplates ? 'var(--success)' : 'rgba(255,255,255,0.1)',
-                                    borderRadius: '14px',
-                                    position: 'relative',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.3s'
-                                }}
+                            <button
+                                onClick={handleToggleStatus}
+                                className={isPremium ? "btn-secondary" : "btn-primary"}
+                                disabled={loading}
+                                style={{ padding: '10px 20px', cursor: loading ? 'not-allowed' : 'pointer' }}
                             >
-                                <div style={{
-                                    width: '22px',
-                                    height: '22px',
-                                    background: 'white',
-                                    borderRadius: '50%',
-                                    position: 'absolute',
-                                    top: '3px',
-                                    left: useTransactionTemplates ? '25px' : '3px',
-                                    transition: 'left 0.3s'
-                                }}></div>
-                            </div>
+                                {loading ? 'Processing...' : (isPremium ? 'Downgrade to Basic' : 'Upgrade to Premium')}
+                            </button>
                         </div>
-
-
                     </div>
 
-                    <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '20px' }}>
                         <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <i className="fa-solid fa-arrow-left" style={{ cursor: 'pointer' }} onClick={() => setActiveView('profile')}></i>
-                            Settings
+                            Back to Profile
                         </h2>
                     </div>
                 </section>
