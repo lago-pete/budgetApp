@@ -23,6 +23,7 @@ const AdminDashboard = () => {
                 headers: { 'x-auth-token': token }
             });
             setUsers(res.data);
+            setError('');
         } catch (err) {
             setError('Failed to fetch users. Access denied?');
         }
@@ -32,6 +33,7 @@ const AdminDashboard = () => {
         try {
             const res = await axios.get('/api/challenges');
             setChallenges(res.data);
+            setError('');
         } catch (err) {
             setError('Failed to fetch challenges.');
         }
@@ -189,7 +191,7 @@ const AdminDashboard = () => {
                                         </td>
                                         <td style={{ padding: '1rem 1.5rem', color: 'var(--text-main)' }}>{u.email}</td>
                                         <td style={{ padding: '1rem 1.5rem' }}>
-                                            <span style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', background: u.role === 'admin' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.role === 'admin' ? 'var(--danger)' : 'var(--success)' }}>
+                                            <span style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', background: u.role === 'admin' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.role === 'admin' ? '#818cf8' : 'var(--success)' }}>
                                                 {u.role.toUpperCase()}
                                             </span>
                                         </td>
