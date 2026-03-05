@@ -65,7 +65,7 @@ function Layout() {
                             </button>
                         ) : activeView === 'profile' ? (
                             <button className="btn-primary" onClick={() => setActiveView('settings')}>
-                                <i className="fa-solid fa-gear"></i> Settings
+                                <i className="fa-solid fa-user-shield"></i> Manage Account
                             </button>
                         ) : null}
                     </div>

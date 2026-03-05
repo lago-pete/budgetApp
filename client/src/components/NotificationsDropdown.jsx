@@ -5,7 +5,6 @@ function NotificationsDropdown() {
 
     // Mock notifications
     const notifications = [
-        { id: 1, text: "Sarah added you as a friend", time: "2h ago" },
         { id: 2, text: "You earned 'Saver I' badge!", time: "1d ago" }
     ];
 
