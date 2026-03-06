@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import AchievementModal from './AchievementModal';
 import { AuthContext } from '../context/AuthContext';
 
 function Profile({ user, setActiveView }) {
     const { fetchUser } = React.useContext(AuthContext); // Ensure fetchUser is available
-    const [selectedBadge, setSelectedBadge] = useState(null);
 
     // Editable fields
     const [firstName, setFirstName] = useState('');
@@ -133,21 +131,9 @@ function Profile({ user, setActiveView }) {
                     </div>
                 </section>
 
-                <section className="badges-section glass-panel">
-                    <h3><i className="fa-solid fa-medal"></i> Achievements</h3>
-                    <div className="badges-grid">
-                        {user.badges.map((b, i) => (
-                            <div key={i} className="badge-item" onClick={() => setSelectedBadge(b)} style={{ cursor: 'pointer' }}>
-                                <i className={`fa-solid ${b.icon} badge-icon`}></i>
-                                <span className="badge-name">{b.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                </section>
 
             </div>
 
-            <AchievementModal achievement={selectedBadge} onClose={() => setSelectedBadge(null)} />
         </div>
     );
 }
