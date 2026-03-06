@@ -6,8 +6,6 @@ import { AuthContext } from '../context/AuthContext';
 function Profile({ user, setActiveView }) {
     const { fetchUser } = React.useContext(AuthContext); // Ensure fetchUser is available
     const [selectedBadge, setSelectedBadge] = useState(null);
-    const [goals, setGoals] = useState(user?.goals || []);
-    const [newGoal, setNewGoal] = useState("");
 
     // Editable fields
     const [firstName, setFirstName] = useState('');
@@ -41,12 +39,6 @@ function Profile({ user, setActiveView }) {
         setHasChanges(changed);
     }, [firstName, lastName, bio, initialState]);
 
-    const handleAddGoal = (e) => {
-        e.preventDefault();
-        if (!newGoal) return;
-        setGoals([...goals, newGoal]);
-        setNewGoal("");
-    };
 
     const handleCancel = () => {
         setFirstName(initialState.firstName);
@@ -153,25 +145,6 @@ function Profile({ user, setActiveView }) {
                     </div>
                 </section>
 
-                <section className="goals-section glass-panel">
-                    <h3><i className="fa-solid fa-bullseye"></i> Financial Goals</h3>
-                    <ul className="transaction-list" style={{ marginBottom: '1rem' }}>
-                        {goals.map((g, i) => (
-                            <li key={i} className="transaction-item">
-                                <span>{g}</span>
-                            </li>
-                        ))}
-                    </ul>
-                    <form onSubmit={handleAddGoal} style={{ display: 'flex', gap: '10px' }}>
-                        <input
-                            value={newGoal}
-                            onChange={e => setNewGoal(e.target.value)}
-                            placeholder="Add a new goal..."
-                            style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px', borderRadius: '8px', color: 'white' }}
-                        />
-                        <button type="submit" className="btn-primary" style={{ height: 'auto' }}>Add</button>
-                    </form>
-                </section>
             </div>
 
             <AchievementModal achievement={selectedBadge} onClose={() => setSelectedBadge(null)} />
