@@ -3,29 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-const auth = (req, res, next) => {
-    const token = req.header('x-auth-token');
-    if (!token) return res.status(401).json({ msg: 'No token' });
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.user;
-        next();
-    } catch (err) {
-        res.status(401).json({ msg: 'Invalid token' });
-    }
-};
-
-const adminAuth = async (req, res, next) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (user.role !== 'admin') {
-            return res.status(403).json({ msg: 'Access denied: Admin only' });
-        }
-        next();
-    } catch (err) {
-        res.status(500).send('Server Error');
-    }
-};
+const { auth, adminAuth } = require('../middleware/auth');
 
 
 // Get All Users (Admin Only)
@@ -55,13 +33,10 @@ router.delete('/admin/:id', [auth, adminAuth], async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-// Search Users
+// Get All Users for Leaderboard
 router.get('/', auth, async (req, res) => {
     try {
-        const currentUser = await User.findById(req.user.id);
-        const users = await User.find({
-            _id: { $ne: req.user.id, $nin: currentUser.friends }
-        }).select('name avatar xp level isPrivate username');
+        const users = await User.find().select('name avatar xp level isPremium username _id');
         res.json(users);
     } catch (err) { res.status(500).send('Server Error'); }
 });
@@ -75,62 +50,6 @@ router.put('/bio', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
-router.post('/request/:id', auth, async (req, res) => {
-    try {
-        const targetUser = await User.findById(req.params.id);
-        if (!targetUser) return res.status(404).json({ msg: 'User not found' });
-        if (targetUser.friendRequests.find(r => r.from.toString() === req.user.id)) return res.status(400).json({ msg: 'Request already sent' });
-        if (targetUser.friends.includes(req.user.id)) return res.status(400).json({ msg: 'Already friends' });
-
-        targetUser.friendRequests.push({ from: req.user.id });
-        await targetUser.save();
-        res.json({ msg: 'Request sent' });
-    } catch (err) { res.status(500).send('Server Error'); }
-});
-
-router.post('/request/accept/:requestId', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        const reqItem = user.friendRequests.id(req.params.requestId);
-        if (!reqItem) return res.status(404).json({ msg: 'Request not found' });
-        const newFriendId = reqItem.from;
-
-        user.friends.push(newFriendId);
-        reqItem.deleteOne();
-        await user.save();
-
-        const otherUser = await User.findById(newFriendId);
-        if (!otherUser.friends.includes(user.id)) {
-            otherUser.friends.push(user.id);
-            await otherUser.save();
-        }
-
-        const updatedUser = await User.findById(req.user.id)
-            .populate('friends', 'name avatar xp level')
-            .populate('friendRequests.from', 'name avatar');
-        res.json(updatedUser);
-    } catch (err) { res.status(500).send('Server Error'); }
-});
-
-router.post('/request/reject/:requestId', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        user.friendRequests.id(req.params.requestId).deleteOne();
-        await user.save();
-        const updatedUser = await User.findById(req.user.id).populate('friendRequests.from', 'name avatar');
-        res.json(updatedUser);
-    } catch (err) { res.status(500).send('Server Error'); }
-});
-
-router.put('/privacy', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        user.isPrivate = !user.isPrivate;
-        await user.save();
-        res.json({ isPrivate: user.isPrivate });
-    } catch (err) { res.status(500).send('Server Error'); }
-});
-
 router.put('/templates', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -140,36 +59,15 @@ router.put('/templates', auth, async (req, res) => {
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
-router.put('/settings', auth, async (req, res) => {
+// Toggle Premium Status
+router.put('/status', auth, async (req, res) => {
     try {
-        const { verifyToDelete } = req.body;
         const user = await User.findById(req.user.id);
-        if (typeof verifyToDelete === 'boolean') {
-            user.verifyToDelete = verifyToDelete;
-        }
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        user.isPremium = !user.isPremium;
         await user.save();
         res.json(user);
-    } catch (err) { res.status(500).send('Server Error'); }
-});
-
-router.get('/friends', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id).populate('friends', 'name avatar xp level isPrivate');
-        res.json(user.friends);
-    } catch (err) { res.status(500).send('Server Error'); }
-});
-
-router.delete('/friends/:friendId', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        user.friends = user.friends.filter(id => id.toString() !== req.params.friendId);
-        await user.save();
-        const friend = await User.findById(req.params.friendId);
-        if (friend) {
-            friend.friends = friend.friends.filter(id => id.toString() !== req.user.id);
-            await friend.save();
-        }
-        res.json(user.friends);
     } catch (err) { res.status(500).send('Server Error'); }
 });
 
@@ -205,17 +103,15 @@ router.get('/:id', auth, async (req, res) => {
     try {
         const user = await User.findById(req.params.id).select('-password');
         if (!user) return res.status(404).json({ msg: 'Profile not found' });
-        const currentUser = await User.findById(req.user.id);
-        const isFriend = currentUser.friends.includes(req.params.id);
 
-        if (req.params.id !== req.user.id && user.isPrivate && !isFriend) {
+        if (req.params.id !== req.user.id && !user.isPremium) {
             return res.json({
                 _id: user._id,
                 name: user.name,
                 avatar: user.avatar,
-                isPrivate: true,
+                isPremium: false,
                 bio: user.bio,
-                msg: "This profile is private."
+                msg: "This profile is basic and private."
             });
         }
         res.json(user);

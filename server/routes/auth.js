@@ -31,7 +31,7 @@ router.post('/check-availability', async (req, res) => {
 
 // Register User
 router.post('/register', async (req, res) => {
-    const { name, email, password, username } = req.body;
+    const { name, email, password, username, isPremium } = req.body;
     try {
         let user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
         if (user) return res.status(400).json({ msg: 'User already exists' });
@@ -42,7 +42,7 @@ router.post('/register', async (req, res) => {
             if (existingUsername) return res.status(400).json({ msg: 'Username already taken' });
         }
 
-        user = new User({ name, email, password, username });
+        user = new User({ name, email, password, username, isPremium });
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
         await user.save();

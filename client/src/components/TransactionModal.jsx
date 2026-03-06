@@ -119,7 +119,6 @@ function TransactionModal({ onClose, onSubmitSuccess, initialData = null, onMana
     };
 
     const handleDelete = async () => {
-        if (user?.verifyToDelete && !window.confirm("Delete this transaction?")) return;
         try {
             await axios.delete(`/api/transactions/${initialData._id}`);
             onSubmitSuccess();

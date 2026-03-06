@@ -14,12 +14,6 @@ const UserSchema = new mongoose.Schema({
         icon: String,
         dateEarned: { type: Date, default: Date.now }
     }],
-    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    friendRequests: [{
-        from: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        status: { type: String, enum: ['pending', 'rejected'], default: 'pending' },
-        date: { type: Date, default: Date.now }
-    }],
     transactionTemplates: [{
         name: String, // Preset Name "Weekly Grocery"
         title: String,
@@ -29,9 +23,8 @@ const UserSchema = new mongoose.Schema({
     }],
     goals: [{ type: String }],
     role: { type: String, default: 'user' },
-    isPrivate: { type: Boolean, default: false },
+    isPremium: { type: Boolean, default: true },
     useTransactionTemplates: { type: Boolean, default: true },
-    verifyToDelete: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
 });
 

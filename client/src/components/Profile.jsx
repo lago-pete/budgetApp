@@ -8,7 +8,6 @@ function Profile({ user, setActiveView }) {
     const [selectedBadge, setSelectedBadge] = useState(null);
     const [goals, setGoals] = useState(user?.goals || []);
     const [newGoal, setNewGoal] = useState("");
-    const [friendsCount, setFriendsCount] = useState(0);
 
     // Editable fields
     const [firstName, setFirstName] = useState('');
@@ -31,7 +30,6 @@ function Profile({ user, setActiveView }) {
             setFirstName(initial.firstName);
             setLastName(initial.lastName);
             setBio(initial.bio);
-            fetchFriendsCount();
         }
     }, [user]);
 
@@ -42,13 +40,6 @@ function Profile({ user, setActiveView }) {
             bio !== initialState.bio;
         setHasChanges(changed);
     }, [firstName, lastName, bio, initialState]);
-
-    const fetchFriendsCount = async () => {
-        try {
-            const res = await axios.get('/api/users/friends');
-            setFriendsCount(res.data.length);
-        } catch (err) { console.error(err); }
-    };
 
     const handleAddGoal = (e) => {
         e.preventDefault();
@@ -134,12 +125,6 @@ function Profile({ user, setActiveView }) {
                                         rows={3}
                                         style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', resize: 'vertical' }}
                                     />
-                                </div>
-                                <div className="profile-field">
-                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Friends</label>
-                                    <div style={{ padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                                        {friendsCount} friends
-                                    </div>
                                 </div>
                             </div>
 

@@ -5,6 +5,7 @@ const path = require('path');
 const User = require('./models/User');
 const Category = require('./models/Category');
 const Transaction = require('./models/Transaction');
+const Challenge = require('./models/Challenge');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,12 +25,7 @@ app.use('/api/uploads', require('./routes/uploads'));
 app.use('/api/transactions', require('./routes/transactions'));
 
 // Other Routes (Inline)
-const Challenge = require('./models/Challenge');
-
-app.get('/api/challenges', async (req, res) => {
-    const challenges = await Challenge.find();
-    res.json(challenges);
-});
+app.use('/api/challenges', require('./routes/challenges'));
 
 
 // Database Connection & Seeding

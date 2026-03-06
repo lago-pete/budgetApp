@@ -5,7 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 
 function LoginPage() {
     const [formData, setFormData] = useState({ identifier: '', password: '' });
-    const { login } = useContext(AuthContext);
+    const { login, user } = useContext(AuthContext);
     const navigate = useNavigate();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -21,12 +21,25 @@ function LoginPage() {
         try {
             setLoading(true);
             await login(identifier, password);
-            navigate('/');
+            // Redirection logic is usually handled by the navigate below, 
+            // but we want to be explicit if they are an admin.
+            // Since AuthContext updates the user state, we should check it.
         } catch (err) {
             setError(err.response?.data?.msg || 'Login failed');
             setLoading(false);
         }
     };
+
+    // Use a secondary effect or check user role after login
+    React.useEffect(() => {
+        if (user) {
+            if (user.role === 'admin') {
+                navigate('/admin/dashboard');
+            } else {
+                navigate('/');
+            }
+        }
+    }, [user, navigate]);
 
     const handleDemoLogin = async () => {
         try {
