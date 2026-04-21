@@ -9,7 +9,7 @@ export default defineConfig({
         port: 5173,
         proxy: {
             '/api': {
-                target: 'http://server:5000', // Using 'server' because of Docker service name, or localhost if outside
+                target: 'http://localhost:5000',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api/, '/api')
             }

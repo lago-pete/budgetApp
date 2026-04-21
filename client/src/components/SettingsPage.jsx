@@ -10,10 +10,10 @@ function SettingsPage({ setActiveView }) {
         setLoading(true);
         try {
             await axios.put('/api/users/status');
-            await fetchUser(); // Refresh user state
+            await fetchUser();
         } catch (err) {
             console.error(err);
-            alert("Failed to update account status");
+            alert('Failed to update account status');
         } finally {
             setLoading(false);
         }
@@ -25,43 +25,57 @@ function SettingsPage({ setActiveView }) {
 
     return (
         <div className="view active-view slide-in">
-            <div className="dashboard-grid">
-                <section className="glass-panel" style={{ gridColumn: '1 / -1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <h3 style={{ margin: 0 }}>Manage Account Status</h3>
+            <section className="glass-panel settings-panel">
+                <div className="settings-header">
+                    <div>
+                        <span className="eyebrow">Account Settings</span>
+                        <h3>Manage Subscription</h3>
+                        <p>Choose between the private Basic experience and the full Premium social features.</p>
                     </div>
+                    <button type="button" className="btn-secondary" onClick={() => setActiveView('profile')}>
+                        <i className="fa-solid fa-arrow-left"></i> Back to Profile
+                    </button>
+                </div>
 
-                    <div style={{ padding: '0 10px' }}>
-                        <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px', marginTop: '20px' }}>Subscription</h4>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0' }}>
-                            <div>
-                                <div style={{ fontWeight: '600', marginBottom: '5px' }}>Current Plan: {isPremium ? 'Premium' : 'Basic'}</div>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                    {isPremium
-                                        ? "You currently have access to all premium features."
-                                        : "Upgrade to premium to unlock exclusive features and analytics."}
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleToggleStatus}
-                                className={isPremium ? "btn-secondary" : "btn-primary"}
-                                disabled={loading}
-                                style={{ padding: '10px 20px', cursor: loading ? 'not-allowed' : 'pointer' }}
-                            >
-                                {loading ? 'Processing...' : (isPremium ? 'Downgrade to Basic' : 'Upgrade to Premium')}
-                            </button>
+                <div className="plan-card-grid">
+                    <article className={`plan-card ${isPremium ? 'plan-card-active' : ''}`}>
+                        <div className="plan-card-badge">
+                            <i className="fa-solid fa-crown"></i>
                         </div>
+                        <h4>Premium</h4>
+                        <p>Social Hub, challenge participation, and the complete community-facing WealthFlow experience.</p>
+                    </article>
+
+                    <article className={`plan-card ${!isPremium ? 'plan-card-active' : ''}`}>
+                        <div className="plan-card-badge">
+                            <i className="fa-solid fa-user-shield"></i>
+                        </div>
+                        <h4>Basic</h4>
+                        <p>Core budgeting tools only, with premium social features hidden for a more private setup.</p>
+                    </article>
+                </div>
+
+                <div className="subscription-summary">
+                    <div>
+                        <span className="summary-label">Current plan</span>
+                        <h4>{isPremium ? 'Premium' : 'Basic'}</h4>
+                        <p>
+                            {isPremium
+                                ? 'Your account can access challenge participation and premium-only views.'
+                                : 'Your account is limited to the budgeting workflow until you upgrade.'}
+                        </p>
                     </div>
 
-                    <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '20px' }}>
-                        <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <i className="fa-solid fa-arrow-left" style={{ cursor: 'pointer' }} onClick={() => setActiveView('profile')}></i>
-                            Back to Profile
-                        </h2>
-                    </div>
-                </section>
-            </div>
+                    <button
+                        type="button"
+                        onClick={handleToggleStatus}
+                        className={isPremium ? 'btn-secondary danger-ghost' : 'btn-primary'}
+                        disabled={loading}
+                    >
+                        {loading ? 'Processing...' : (isPremium ? 'Downgrade to Basic' : 'Upgrade to Premium')}
+                    </button>
+                </div>
+            </section>
         </div>
     );
 }

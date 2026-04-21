@@ -9,14 +9,29 @@ function RegisterPage() {
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [accountType, setAccountType] = useState('premium'); // 'premium' or 'basic'
+    const [accountType, setAccountType] = useState('premium');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [step, setStep] = useState(1); // 1 = initial form, 2 = confirm password
+    const [step, setStep] = useState(1);
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const { register } = useContext(AuthContext);
     const navigate = useNavigate();
+
+    const accountCards = [
+        {
+            id: 'premium',
+            icon: 'fa-crown',
+            title: 'Premium',
+            copy: 'Social Hub, challenge tracking, and the full community experience.'
+        },
+        {
+            id: 'basic',
+            icon: 'fa-user',
+            title: 'Basic',
+            copy: 'Core budgeting tools only, with social features hidden for privacy.'
+        }
+    ];
 
     const handleInitialSubmit = async (e) => {
         e.preventDefault();
@@ -32,7 +47,6 @@ function RegisterPage() {
             return;
         }
 
-        // Check if username or email already exists
         try {
             const res = await axios.post('/api/auth/check-availability', {
                 username,
@@ -60,13 +74,13 @@ function RegisterPage() {
         }
 
         try {
-            const fullName = `${firstName} ${lastName}`;
+            const fullName = `${firstName} ${lastName}`.trim();
             const isPremium = accountType === 'premium';
             await register(fullName, email, password, username, isPremium);
             navigate('/');
         } catch (err) {
-            setError(err.response?.data?.msg || "Registration failed");
-            setStep(1); // Go back to initial form
+            setError(err.response?.data?.msg || 'Registration failed');
+            setStep(1);
         }
     };
 
@@ -77,11 +91,16 @@ function RegisterPage() {
     };
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100%' }}>
-            <div className="glass-panel" style={{ width: '400px', padding: '2rem' }}>
+        <div className="auth-container slide-in">
+            <div className="auth-card glass-panel register-card">
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <div className="logo-icon" style={{ margin: '0 auto 1rem' }}><i className="fa-solid fa-bolt"></i></div>
                     <h2>{step === 1 ? 'Create Account' : 'Confirm Password'}</h2>
+                    <p className="auth-subtitle">
+                        {step === 1
+                            ? 'Create your WealthFlow profile and choose how social you want the experience to be.'
+                            : 'Confirm your password and lock in the account tier that fits your privacy preferences.'}
+                    </p>
                 </div>
 
                 {error && <div className="alert-danger">{error}</div>}
@@ -113,11 +132,11 @@ function RegisterPage() {
                             <label>Password</label>
                             <div style={{ position: 'relative' }}>
                                 <input
-                                    type={showPassword ? "text" : "password"}
+                                    type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     required
-                                    placeholder="••••••"
+                                    placeholder="Enter password"
                                     style={{ width: '100%', paddingRight: '40px' }}
                                 />
                                 <i
@@ -142,11 +161,11 @@ function RegisterPage() {
                             <label>Confirm Password</label>
                             <div style={{ position: 'relative' }}>
                                 <input
-                                    type={showConfirmPassword ? "text" : "password"}
+                                    type={showConfirmPassword ? 'text' : 'password'}
                                     value={confirmPassword}
                                     onChange={e => setConfirmPassword(e.target.value)}
                                     required
-                                    placeholder="••••••"
+                                    placeholder="Re-enter password"
                                     autoFocus
                                     style={{ width: '100%', paddingRight: '40px' }}
                                 />
@@ -164,39 +183,25 @@ function RegisterPage() {
                                 ></i>
                             </div>
                         </div>
+
                         <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                             <label>Account Type</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '8px' }}>
-                                <div
-                                    onClick={() => setAccountType('premium')}
-                                    className={`glass-panel ${accountType === 'premium' ? 'active' : ''}`}
-                                    style={{
-                                        padding: '0.75rem',
-                                        cursor: 'pointer',
-                                        textAlign: 'center',
-                                        border: accountType === 'premium' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
-                                        background: accountType === 'premium' ? 'rgba(99, 102, 241, 0.1)' : 'transparent'
-                                    }}
-                                >
-                                    <i className="fa-solid fa-crown" style={{ display: 'block', fontSize: '1.2rem', marginBottom: '4px', color: accountType === 'premium' ? 'var(--primary)' : 'var(--text-muted)' }}></i>
-                                    <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Premium</div>
-                                </div>
-                                <div
-                                    onClick={() => setAccountType('basic')}
-                                    className={`glass-panel ${accountType === 'basic' ? 'active' : ''}`}
-                                    style={{
-                                        padding: '0.75rem',
-                                        cursor: 'pointer',
-                                        textAlign: 'center',
-                                        border: accountType === 'basic' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
-                                        background: accountType === 'basic' ? 'rgba(99, 102, 241, 0.1)' : 'transparent'
-                                    }}
-                                >
-                                    <i className="fa-solid fa-user" style={{ display: 'block', fontSize: '1.2rem', marginBottom: '4px', color: accountType === 'basic' ? 'var(--primary)' : 'var(--text-muted)' }}></i>
-                                    <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Basic</div>
-                                </div>
+                            <div className="account-type-grid">
+                                {accountCards.map(card => (
+                                    <button
+                                        key={card.id}
+                                        type="button"
+                                        onClick={() => setAccountType(card.id)}
+                                        className={`select-card ${accountType === card.id ? 'select-card-active' : ''}`}
+                                    >
+                                        <span className="select-card-icon"><i className={`fa-solid ${card.icon}`}></i></span>
+                                        <span className="select-card-title">{card.title}</span>
+                                        <span className="select-card-copy">{card.copy}</span>
+                                    </button>
+                                ))}
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+
+                            <div className="account-plan-note">
                                 {accountType === 'premium' ? (
                                     <span><i className="fa-solid fa-circle-check" style={{ color: 'var(--success)' }}></i> <strong>Premium Plan</strong>: Full Social Hub and Challenges enabled.</span>
                                 ) : (
@@ -204,8 +209,9 @@ function RegisterPage() {
                                 )}
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button type="button" onClick={handleBack} className="btn-secondary" style={{ flex: 1, cursor: 'pointer' }}>Back</button>
+
+                        <div className="form-actions">
+                            <button type="button" onClick={handleBack} className="btn-secondary" style={{ flex: 1 }}>Back</button>
                             <button type="submit" className="btn-primary" style={{ flex: 1 }}>Sign Up</button>
                         </div>
                     </form>

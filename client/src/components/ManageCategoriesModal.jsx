@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-import { AuthContext } from '../context/AuthContext';
-
-function ManageCategoriesModal({ onClose, onBack }) {
-    const { user } = React.useContext(AuthContext);
+function ManageCategoriesModal({ onClose }) {
     const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
     const [editColor, setEditColor] = useState('');
@@ -21,17 +17,16 @@ function ManageCategoriesModal({ onClose, onBack }) {
 
     const fetchCategories = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('/api/categories', { headers: { 'x-auth-token': token } });
+            const res = await axios.get('/api/categories');
             setCategories(res.data);
-            setLoading(false);
-        } catch (err) { console.error(err); setLoading(false); }
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const handleCreate = async (e) => {
         e.preventDefault();
 
-        // Check for duplicate category name (case-insensitive)
         const duplicateExists = categories.some(
             cat => cat.name.toLowerCase() === newName.toLowerCase()
         );
@@ -42,17 +37,19 @@ function ManageCategoriesModal({ onClose, onBack }) {
         }
 
         try {
-            const token = localStorage.getItem('token');
             await axios.post('/api/categories', {
-                name: newName, type: newType, color: newColor
-            }, { headers: { 'x-auth-token': token } });
+                name: newName,
+                type: newType,
+                color: newColor
+            });
             setNewName('');
-            fetchCategories();
-        } catch (err) { alert("Failed"); }
+            await fetchCategories();
+        } catch (err) {
+            alert('Failed to create category');
+        }
     };
 
     const handleUpdate = async (id) => {
-        // Check for duplicate category name (case-insensitive), excluding current category
         const duplicateExists = categories.some(
             cat => cat._id !== id && cat.name.toLowerCase() === editName.toLowerCase()
         );
@@ -63,22 +60,24 @@ function ManageCategoriesModal({ onClose, onBack }) {
         }
 
         try {
-            const token = localStorage.getItem('token');
             await axios.put(`/api/categories/${id}`, {
-                name: editName, color: editColor
-            }, { headers: { 'x-auth-token': token } });
+                name: editName,
+                color: editColor
+            });
             setEditingId(null);
-            // Wait a bit or optimistic?
-            fetchCategories();
-        } catch (err) { alert("Update failed: " + (err.response?.data?.msg || err.message)); }
+            await fetchCategories();
+        } catch (err) {
+            alert(`Update failed: ${err.response?.data?.msg || err.message}`);
+        }
     };
 
     const handleDelete = async (id) => {
         try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`/api/categories/${id}`, { headers: { 'x-auth-token': token } });
-            fetchCategories();
-        } catch (err) { alert("Delete failed"); }
+            await axios.delete(`/api/categories/${id}`);
+            await fetchCategories();
+        } catch (err) {
+            alert('Delete failed');
+        }
     };
 
     const startEdit = (cat) => {
@@ -95,47 +94,59 @@ function ManageCategoriesModal({ onClose, onBack }) {
                     <button className="close-modal" onClick={onClose}><i className="fa-solid fa-xmark"></i></button>
                 </div>
                 <div className="modal-body">
+                    <form onSubmit={handleCreate} className="category-create-form">
+                        <div className="section-heading section-heading-tight">
+                            <div>
+                                <h4>Add New</h4>
+                                <p>Create income or expense categories with a clear accent color.</p>
+                            </div>
+                        </div>
 
-                    <form onSubmit={handleCreate} style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                        <h4>Add New</h4>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name" required style={{ flex: 1 }} />
-                            <select value={newType} onChange={e => setNewType(e.target.value)} style={{ width: '100px', background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div className="category-form-row">
+                            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Category name" required />
+                            <select value={newType} onChange={e => setNewType(e.target.value)}>
                                 <option value="expense">Expense</option>
                                 <option value="income">Income</option>
                             </select>
-                            <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '50%', cursor: 'pointer', overflow: 'hidden', flexShrink: 0 }} />
+                            <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} className="category-color-input" />
                             <button className="btn-primary" type="submit">Add</button>
                         </div>
                     </form>
 
-                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    <div className="category-list">
                         {categories.map(cat => (
-                            <div key={cat._id} className="transaction-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px' }}>
+                            <div key={cat._id} className="transaction-item category-row">
                                 {editingId === cat._id ? (
-                                    <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-                                        <input value={editName} onChange={e => setEditName(e.target.value)} style={{ flex: 1 }} />
-                                        <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '50%', cursor: 'pointer', overflow: 'hidden' }} />
-                                        <button className="btn-success" onClick={() => handleUpdate(cat._id)} style={{ background: 'var(--success)', border: 'none', borderRadius: '5px', color: 'white', width: '30px', cursor: 'pointer' }}><i className="fa-solid fa-check"></i></button>
-                                        <button className="btn-secondary" onClick={() => setEditingId(null)} style={{ width: '30px', cursor: 'pointer' }}><i className="fa-solid fa-xmark"></i></button>
+                                    <div className="category-edit-row">
+                                        <input value={editName} onChange={e => setEditName(e.target.value)} />
+                                        <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} className="category-color-input" />
+                                        <button type="button" className="icon-action success" onClick={() => handleUpdate(cat._id)}>
+                                            <i className="fa-solid fa-check"></i>
+                                        </button>
+                                        <button type="button" className="icon-action" onClick={() => setEditingId(null)}>
+                                            <i className="fa-solid fa-xmark"></i>
+                                        </button>
                                     </div>
                                 ) : (
                                     <>
-                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: cat.color }}></div>
+                                        <div className="category-info">
+                                            <div className="category-dot" style={{ background: cat.color }}></div>
                                             <span>{cat.name}</span>
-                                            <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>({cat.type})</span>
+                                            <span className="category-type">({cat.type})</span>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '5px' }}>
-                                            <button className="btn-secondary" onClick={() => startEdit(cat)} style={{ padding: '5px', cursor: 'pointer' }}><i className="fa-solid fa-pen"></i></button>
-                                            <button className="btn-danger" onClick={() => handleDelete(cat._id)} style={{ background: 'rgba(255,59,48,0.2)', color: 'var(--danger)', padding: '5px', border: 'none', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i></button>
+                                        <div className="category-actions">
+                                            <button type="button" className="icon-action" onClick={() => startEdit(cat)}>
+                                                <i className="fa-solid fa-pen"></i>
+                                            </button>
+                                            <button type="button" className="icon-action danger" onClick={() => handleDelete(cat._id)}>
+                                                <i className="fa-solid fa-trash"></i>
+                                            </button>
                                         </div>
                                     </>
                                 )}
                             </div>
                         ))}
                     </div>
-
                 </div>
             </div>
         </div>
