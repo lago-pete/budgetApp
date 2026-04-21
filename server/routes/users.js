@@ -61,7 +61,7 @@ router.delete('/admin/:id', [auth, adminAuth], async (req, res) => {
 // Get All Users for Leaderboard
 router.get('/', [auth, premiumOrAdmin], async (req, res) => {
     try {
-        const users = await User.find().select('name avatar xp level isPremium username _id');
+        const users = await User.find().select('name avatar xp isPremium username _id');
         res.json(users);
     } catch (err) { res.status(500).send('Server Error'); }
 });

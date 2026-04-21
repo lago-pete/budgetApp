@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Challenge = require('../models/Challenge');
 const ChallengeParticipation = require('../models/ChallengeParticipation');
+const User = require('../models/User');
 const { auth, adminAuth, premiumOrAdmin } = require('../middleware/auth');
 
 const clampProgress = (value) => {
@@ -135,10 +136,16 @@ router.put('/:id/progress', [auth, premiumOrAdmin], async (req, res) => {
             return res.status(404).json({ msg: 'Join the challenge before updating progress' });
         }
 
+        const wasAlreadyCompleted = participation.status === 'completed';
         participation.progressPercent = clampProgress(req.body.progressPercent);
-        participation.status = participation.progressPercent >= 100 ? 'completed' : 'joined';
-        participation.completedAt = participation.progressPercent >= 100 ? new Date() : null;
+        const nowComplete = participation.progressPercent >= 100;
+        participation.status = nowComplete ? 'completed' : 'joined';
+        participation.completedAt = nowComplete ? new Date() : null;
         await participation.save();
+
+        if (nowComplete && !wasAlreadyCompleted && challenge.reward > 0) {
+            await User.findByIdAndUpdate(req.user.id, { $inc: { xp: challenge.reward } });
+        }
 
         return res.json({
             ...challenge.toObject(),
@@ -184,7 +191,7 @@ router.put('/:id', [auth, adminAuth], async (req, res) => {
         const fields = {};
         if (title) fields.title = title;
         if (description) fields.description = description;
-        if (reward) fields.reward = reward;
+        if (reward !== undefined) fields.reward = Number(reward);
         if (isActive !== undefined) fields.isActive = isActive;
         if (participantsCount !== undefined) fields.participantsCount = participantsCount;
 

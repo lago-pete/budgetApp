@@ -12,7 +12,6 @@ import SettingsPage from './components/SettingsPage';
 import CategoriesPage from './components/CategoriesPage';
 import TransactionModal from './components/TransactionModal';
 import ManageCategoriesModal from './components/ManageCategoriesModal';
-import NotificationsDropdown from './components/NotificationsDropdown';
 import AdminLoginPage from './components/AdminLoginPage';
 import AdminDashboard from './components/AdminDashboard';
 
@@ -52,8 +51,6 @@ function Layout() {
                 <header className="top-bar">
                     <h2 id="page-title">{activeView.charAt(0).toUpperCase() + activeView.slice(1)}</h2>
                     <div className="actions">
-                        <NotificationsDropdown />
-
                         {/* Dynamic Button */}
                         {activeView === 'categories' ? (
                             <button className="btn-primary" onClick={() => setShowCategoryModal(true)}>

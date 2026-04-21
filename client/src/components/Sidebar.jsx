@@ -47,7 +47,7 @@ function Sidebar({ activeView, setActiveView, user }) {
                         </div>
                         <div className="user-info">
                             <span className="name">{user.name}</span>
-                            <span className="level">Lvl {user.level} Saver</span>
+                            <span className="level">{user.xp ?? 0} XP</span>
                         </div>
                     </div>
                 )}

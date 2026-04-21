@@ -1,17 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
 function SocialHub() {
+    const { user } = useContext(AuthContext);
     const [users, setUsers] = useState([]);
+    const [completedChallenges, setCompletedChallenges] = useState([]);
 
     useEffect(() => {
         fetchAllUsers();
+        fetchCompletedChallenges();
     }, []);
 
     const fetchAllUsers = async () => {
         try {
             const res = await axios.get('/api/users');
             setUsers(res.data);
+        } catch (err) { console.error(err); }
+    };
+
+    const fetchCompletedChallenges = async () => {
+        try {
+            const res = await axios.get('/api/challenges/my');
+            setCompletedChallenges(res.data.filter(c => c.participation?.status === 'completed'));
         } catch (err) { console.error(err); }
     };
 
@@ -35,11 +46,39 @@ function SocialHub() {
                                         </div>
                                         <div>
                                             <div style={{ fontWeight: 'bold' }}>{u.name}</div>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Lvl {u.level} {u.isPremium && <i className="fa-solid fa-gem" style={{ color: 'var(--primary)', marginLeft: '5px' }}></i>}</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                                {u.isPremium && <i className="fa-solid fa-gem" style={{ color: 'var(--primary)', marginRight: '5px' }}></i>}
+                                                {u._id === user?._id && <span style={{ color: 'var(--accent-secondary)', fontSize: '0.75rem' }}>You</span>}
+                                            </div>
                                         </div>
                                     </div>
                                     <div style={{ fontWeight: 'bold', color: 'var(--accent-secondary)' }}>
                                         {u.xp} XP
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </section>
+
+                <section className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+                    <h3><i className="fa-solid fa-circle-check"></i> My Completed Challenges</h3>
+                    {completedChallenges.length === 0 ? (
+                        <div style={{ padding: '20px', color: 'var(--text-muted)' }}>No completed challenges yet. Finish a challenge to see it here.</div>
+                    ) : (
+                        <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                            {completedChallenges.map(c => (
+                                <li key={c._id} style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '10px', padding: '14px 16px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                                        <i className="fa-solid fa-circle-check" style={{ color: 'var(--success)' }}></i>
+                                        <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{c.title}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>{c.description}</div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginTop: '8px' }}>
+                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: '600' }}>+{c.reward} XP</span>
+                                        <span style={{ color: 'var(--text-muted)' }}>
+                                            {c.participation?.completedAt ? new Date(c.participation.completedAt).toLocaleDateString() : ''}
+                                        </span>
                                     </div>
                                 </li>
                             ))}

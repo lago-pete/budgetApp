@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
 function Challenges() {
+    const { fetchUser } = useContext(AuthContext);
     const [challenges, setChallenges] = useState([]);
     const [progressDrafts, setProgressDrafts] = useState({});
     const [loading, setLoading] = useState(true);
@@ -60,9 +62,12 @@ function Challenges() {
     const saveProgress = async (id) => {
         try {
             setBusyId(id);
-            await axios.put(`/api/challenges/${id}/progress`, {
+            const res = await axios.put(`/api/challenges/${id}/progress`, {
                 progressPercent: progressDrafts[id] ?? 0
             });
+            if (res.data?.participation?.status === 'completed') {
+                await fetchUser();
+            }
             await loadChallenges();
         } catch (err) {
             setError(err.response?.data?.msg || 'Failed to update progress');
@@ -71,7 +76,7 @@ function Challenges() {
         }
     };
 
-    const joinedChallenges = challenges.filter(challenge => Boolean(challenge.participation));
+    const joinedChallenges = challenges.filter(challenge => challenge.participation?.status === 'joined');
     const exploreChallenges = challenges.filter(challenge => !challenge.participation);
 
     if (loading) {
@@ -114,7 +119,7 @@ function Challenges() {
                                     <div>
                                         <h4>{challenge.title}</h4>
                                         <span className="challenge-meta">
-                                            {isComplete ? 'Completed' : 'Joined'} • {challenge.reward}
+                                            {isComplete ? 'Completed' : 'Joined'} • {challenge.reward} XP
                                         </span>
                                     </div>
                                 </div>
@@ -191,7 +196,7 @@ function Challenges() {
                                 <div>
                                     <h4>{challenge.title}</h4>
                                     <span className="challenge-meta">
-                                        {challenge.isActive ? 'Open now' : 'Inactive'} • {challenge.reward}
+                                        {challenge.isActive ? 'Open now' : 'Inactive'} • {challenge.reward} XP
                                     </span>
                                 </div>
                             </div>
@@ -200,7 +205,7 @@ function Challenges() {
 
                             <div className="c-footer">
                                 <span><i className="fa-solid fa-users"></i> {challenge.participantsCount}</span>
-                                <span className="reward">{challenge.reward}</span>
+                                <span className="reward">{challenge.reward} XP</span>
                             </div>
 
                             <button

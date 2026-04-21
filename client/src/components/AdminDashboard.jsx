@@ -10,7 +10,7 @@ const AdminDashboard = () => {
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('users');
     const [challengeModal, setChallengeModal] = useState({ show: false, challenge: null });
-    const [challengeFormData, setChallengeFormData] = useState({ title: '', description: '', reward: '', isActive: true });
+    const [challengeFormData, setChallengeFormData] = useState({ title: '', description: '', reward: 0, isActive: true });
 
     const { user, logout } = useContext(AuthContext);
     const navigate = useNavigate();
@@ -79,12 +79,12 @@ const AdminDashboard = () => {
             setChallengeFormData({
                 title: c.title,
                 description: c.description || '',
-                reward: c.reward || '',
+                reward: c.reward ?? 0,
                 isActive: c.isActive
             });
         } else {
             setChallengeModal({ show: true, challenge: null });
-            setChallengeFormData({ title: '', description: '', reward: '', isActive: true });
+            setChallengeFormData({ title: '', description: '', reward: 0, isActive: true });
         }
     };
 
@@ -120,8 +120,9 @@ const AdminDashboard = () => {
     if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading Admin Panel...</div>;
 
     return (
-        <div className="main-content" style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
-            <header className="top-bar">
+        <div style={{ height: '100vh', overflowY: 'auto', background: 'var(--bg-dark)', width: '100%' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem', width: '100%', boxSizing: 'border-box' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 id="page-title">Admin Dashboard</h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Welcome back, {user?.name}</p>
@@ -235,7 +236,7 @@ const AdminDashboard = () => {
                                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{c.description?.substring(0, 40)}...</div>
                                         </td>
                                         <td style={{ padding: '1rem 1.5rem', color: 'var(--text-main)' }}>{c.participantsCount}</td>
-                                        <td style={{ padding: '1rem 1.5rem', color: 'var(--accent-secondary)' }}>{c.reward}</td>
+                                        <td style={{ padding: '1rem 1.5rem', color: 'var(--accent-secondary)' }}>{c.reward} XP</td>
                                         <td style={{ padding: '1rem 1.5rem' }}>
                                             <span style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', background: c.isActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(156, 163, 175, 0.1)', color: c.isActive ? 'var(--success)' : 'var(--text-muted)' }}>
                                                 {c.isActive ? 'ACTIVE' : 'INACTIVE'}
@@ -302,13 +303,18 @@ const AdminDashboard = () => {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Reward</label>
+                                    <label>Reward (XP)</label>
                                     <input
                                         type="text"
-                                        value={challengeFormData.reward}
-                                        onChange={(e) => setChallengeFormData({ ...challengeFormData, reward: e.target.value })}
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={challengeFormData.reward === 0 ? '' : challengeFormData.reward}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '');
+                                            setChallengeFormData({ ...challengeFormData, reward: val === '' ? 0 : Number(val) });
+                                        }}
                                         required
-                                        placeholder="e.g. 500 XP"
+                                        placeholder="e.g. 500"
                                     />
                                 </div>
                                 <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -329,6 +335,7 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             )}
+        </div>
         </div>
     );
 };

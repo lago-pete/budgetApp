@@ -68,8 +68,8 @@ function Profile({ user, setActiveView }) {
                     <div className="profile-edit-container" style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
                         <div className="profile-avatar-section">
                             <img src={user.avatar} alt="Profile" style={{ width: '150px', height: '150px', borderRadius: '50%', border: '4px solid var(--primary)', boxShadow: '0 8px 25px rgba(0,0,0,0.3)' }} />
-                            <div className="level-badge" style={{ marginTop: '-20px', position: 'relative', textAlign: 'center' }}>
-                                <span style={{ background: 'var(--primary)', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold' }}>Lvl {user.level}</span>
+                            <div style={{ marginTop: '8px', textAlign: 'center' }}>
+                                <span style={{ background: 'var(--primary)', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem' }}>{user.xp ?? 0} XP</span>
                             </div>
                         </div>
 

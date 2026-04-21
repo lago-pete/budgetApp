@@ -1030,6 +1030,23 @@ textarea:focus {
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.category-form-row input:not([type="color"]),
+.category-form-row select {
+    background: rgba(0, 0, 0, 0.3);
+    border: var(--border-light);
+    padding: 0.8rem;
+    border-radius: 8px;
+    color: var(--text-main);
+    font-family: 'Outfit', sans-serif;
+    outline: none;
+    width: 100%;
+}
+
+.category-form-row input:not([type="color"]):focus,
+.category-form-row select:focus {
+    border-color: var(--primary);
+}
+
 .category-form-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 120px 46px auto;
@@ -1069,6 +1086,21 @@ textarea:focus {
 
 .category-edit-row {
     width: 100%;
+}
+
+.category-edit-row input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: var(--border-light);
+    padding: 0.8rem;
+    border-radius: 8px;
+    color: var(--text-main);
+    font-family: 'Outfit', sans-serif;
+    outline: none;
+}
+
+.category-edit-row input:focus {
+    border-color: var(--primary);
 }
 
 .category-dot {

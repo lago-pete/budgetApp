@@ -8,12 +8,6 @@ const UserSchema = new mongoose.Schema({
     bio: { type: String, default: "" },
     avatar: { type: String, default: "https://ui-avatars.com/api/?background=random" },
     xp: { type: Number, default: 0 },
-    level: { type: Number, default: 1 },
-    badges: [{
-        name: String,
-        icon: String,
-        dateEarned: { type: Date, default: Date.now }
-    }],
     transactionTemplates: [{
         name: String, // Preset Name "Weekly Grocery"
         title: String,
