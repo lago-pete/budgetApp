@@ -2,10 +2,18 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const { auth } = require('../middleware/auth');
+
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Storage engine
 const storage = multer.diskStorage({
-    destination: './uploads/',
+    destination: uploadsDir,
     filename: function (req, file, cb) {
         cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
     }
@@ -33,7 +41,7 @@ function checkFileType(file, cb) {
     }
 }
 
-router.post('/', (req, res) => {
+router.post('/', auth, (req, res) => {
     upload(req, res, (err) => {
         if (err) {
             res.status(400).json({ msg: err });

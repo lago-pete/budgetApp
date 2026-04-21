@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,6 +8,7 @@ const User = require('./models/User');
 const Category = require('./models/Category');
 const Transaction = require('./models/Transaction');
 const Challenge = require('./models/Challenge');
+const ChallengeParticipation = require('./models/ChallengeParticipation');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -22,7 +25,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/uploads', require('./routes/uploads'));
-app.use('/api/transactions', require('./routes/transactions'));
+    app.use('/api/transactions', require('./routes/transactions'));
 
 // Other Routes (Inline)
 app.use('/api/challenges', require('./routes/challenges'));
@@ -74,7 +77,6 @@ async function seedData() {
             { title: 'Emergency Fund Starter', description: "Reach $1000 in emergency fund.", participantsCount: 400, reward: 'Safety Badge', isActive: false },
         ];
         await Challenge.insertMany(challenges);
-        await Challenge.insertMany(challenges);
         console.log('Challenges seeded');
     }
 
@@ -103,6 +105,8 @@ async function seedData() {
         await admin.save();
         console.log('Seed: Admin user created');
     }
+
+    await ChallengeParticipation.syncIndexes();
 }
 
 app.listen(PORT, () => {

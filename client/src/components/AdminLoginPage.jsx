@@ -1,12 +1,12 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 
 const AdminLoginPage = () => {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
 
@@ -24,7 +24,10 @@ const AdminLoginPage = () => {
     return (
         <div className="auth-container slide-in">
             <div className="auth-card glass-panel">
-                <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Admin Portal</h2>
+                <h2 style={{ textAlign: 'center', marginBottom: '1rem' }}>Admin Portal</h2>
+                <p className="auth-subtitle" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                    Sign in with the seeded admin account to manage users and challenge definitions.
+                </p>
                 {error && <div className="alert-danger">{error}</div>}
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
@@ -39,13 +42,28 @@ const AdminLoginPage = () => {
                     </div>
                     <div className="form-group">
                         <label>Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            placeholder="••••••"
-                        />
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="Enter admin password"
+                                style={{ width: '100%', paddingRight: '40px' }}
+                            />
+                            <i
+                                className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '12px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    cursor: 'pointer',
+                                    color: 'var(--text-muted)'
+                                }}
+                            ></i>
+                        </div>
                     </div>
                     <button type="submit" className="btn-primary full-width">
                         Sign In as Admin

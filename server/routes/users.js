@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const jwt = require('jsonwebtoken');
+const path = require('path');
+const fs = require('fs');
+const Transaction = require('../models/Transaction');
+const Category = require('../models/Category');
+const ChallengeParticipation = require('../models/ChallengeParticipation');
 
-const { auth, adminAuth } = require('../middleware/auth');
+const { auth, adminAuth, premiumOrAdmin } = require('../middleware/auth');
 
 
 // Get All Users (Admin Only)
@@ -27,14 +31,35 @@ router.delete('/admin/:id', [auth, adminAuth], async (req, res) => {
             return res.status(400).json({ msg: 'Admins cannot delete themselves' });
         }
 
+        const transactions = await Transaction.find({ user: userToDelete.id }).select('proofUrl');
+
+        await Promise.all(
+            transactions
+                .filter(tx => typeof tx.proofUrl === 'string' && tx.proofUrl.startsWith('/uploads/'))
+                .map(async tx => {
+                    const filePath = path.join(__dirname, '..', tx.proofUrl.replace(/^\//, ''));
+                    try {
+                        await fs.promises.unlink(filePath);
+                    } catch (err) {
+                        if (err.code !== 'ENOENT') {
+                            throw err;
+                        }
+                    }
+                })
+        );
+
+        await Transaction.deleteMany({ user: userToDelete.id });
+        await Category.deleteMany({ user: userToDelete.id });
+        await ChallengeParticipation.deleteMany({ user: userToDelete.id });
         await User.findByIdAndDelete(req.params.id);
+
         res.json({ msg: 'User deleted successfully' });
     } catch (err) {
         res.status(500).send('Server Error');
     }
 });
 // Get All Users for Leaderboard
-router.get('/', auth, async (req, res) => {
+router.get('/', [auth, premiumOrAdmin], async (req, res) => {
     try {
         const users = await User.find().select('name avatar xp level isPremium username _id');
         res.json(users);

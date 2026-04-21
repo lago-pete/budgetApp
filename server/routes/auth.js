@@ -5,6 +5,9 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Category = require('../models/Category');
 const Transaction = require('../models/Transaction');
+const { auth, getJwtSecret } = require('../middleware/auth');
+
+const jwtSecret = getJwtSecret();
 
 
 // Check username/email availability
@@ -60,7 +63,7 @@ router.post('/register', async (req, res) => {
         await Category.insertMany(defaultCats.map(c => ({ ...c, user: user.id, isDefault: false })));
 
         const payload = { user: { id: user.id } };
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, async (err, token) => {
+        jwt.sign(payload, jwtSecret, { expiresIn: 360000 }, async (err, token) => {
             if (err) throw err;
             const userData = await User.findById(user.id).select('-password');
             res.json({ token, user: userData });
@@ -83,7 +86,7 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
         const payload = { user: { id: user.id } };
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, async (err, token) => {
+        jwt.sign(payload, jwtSecret, { expiresIn: 360000 }, async (err, token) => {
             if (err) throw err;
             const userData = await User.findById(user.id).select('-password');
             res.json({ token, user: userData });
@@ -92,12 +95,9 @@ router.post('/login', async (req, res) => {
 });
 
 // Get User Data
-router.get('/', async (req, res) => {
-    const token = req.header('x-auth-token');
-    if (!token) return res.status(401).json({ msg: 'No token' });
+router.get('/', auth, async (req, res) => {
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.user.id).select('-password');
+        const user = await User.findById(req.user.id).select('-password');
         res.json(user);
     } catch (err) { res.status(401).json({ msg: 'Invalid token' }); }
 });
@@ -171,7 +171,7 @@ router.post('/demo', async (req, res) => {
 
         // 5. Login
         const payload = { user: { id: demoUser.id } };
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, async (err, token) => {
+        jwt.sign(payload, jwtSecret, { expiresIn: 360000 }, async (err, token) => {
             if (err) throw err;
             const userData = await User.findById(demoUser.id).select('-password');
             res.json({ token, user: userData });

@@ -21,16 +21,12 @@ function LoginPage() {
         try {
             setLoading(true);
             await login(identifier, password);
-            // Redirection logic is usually handled by the navigate below, 
-            // but we want to be explicit if they are an admin.
-            // Since AuthContext updates the user state, we should check it.
         } catch (err) {
             setError(err.response?.data?.msg || 'Login failed');
             setLoading(false);
         }
     };
 
-    // Use a secondary effect or check user role after login
     React.useEffect(() => {
         if (user) {
             if (user.role === 'admin') {
@@ -46,13 +42,10 @@ function LoginPage() {
             setLoading(true);
             const res = await axios.post('/api/auth/demo');
             localStorage.setItem('token', res.data.token);
-            // Force reload or re-fetch context. Ideally context has a 'loadUser' but for now a reload works or passing token to login if modified.
-            // Actually AuthContext.login does an API call. We manual token set here, so we should really use a helper or just force reload.
-            // Let's manually trigger the verify in context if possible, or easiest: full reload.
             window.location.href = '/';
         } catch (err) {
             setLoading(false);
-            setError("Demo login failed");
+            setError('Demo login failed');
         }
     };
 
@@ -83,12 +76,12 @@ function LoginPage() {
                         <label>Password</label>
                         <div style={{ position: 'relative' }}>
                             <input
-                                type={showPassword ? "text" : "password"}
+                                type={showPassword ? 'text' : 'password'}
                                 name="password"
                                 value={password}
                                 onChange={onChange}
                                 required
-                                placeholder="••••••"
+                                placeholder="Enter password"
                                 style={{ width: '100%', paddingRight: '40px' }}
                             />
                             <i
