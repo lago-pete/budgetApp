@@ -64,17 +64,17 @@ async function seedData() {
     const challCount = await Challenge.countDocuments();
     if (challCount === 0) {
         const challenges = [
-            { title: 'No Eating Out Week', description: "Cook all meals at home for 7 days.", participantsCount: 142, reward: '500 XP', isActive: true },
-            { title: 'Save $500 this Month', description: "Put aside $500 into savings.", participantsCount: 320, reward: 'Saver Badge', isActive: true },
-            { title: 'Zero Spend Weekend', description: "Spend $0 on Saturday and Sunday.", participantsCount: 89, reward: '200 XP', isActive: true },
-            { title: 'Debt Destroyer', description: "Pay off $200 of debt extra this month.", participantsCount: 45, reward: 'Freedom Badge', isActive: true },
-            { title: 'Coffeeless Week', description: "Skip the coffee shop run for a week.", participantsCount: 210, reward: '100 XP', isActive: true },
-            { title: 'Subscription Cull', description: "Cancel one unused subscription.", participantsCount: 56, reward: 'Smart Badge', isActive: true },
-            { title: 'Grocery Run Under $50', description: "Keep grocery bill under $50.", participantsCount: 112, reward: '150 XP', isActive: false },
-            { title: '30 Day Savings Streak', description: "Save at least $5 every day.", participantsCount: 78, reward: 'Streak Badge', isActive: false },
-            { title: 'Sell One Item', description: "Sell something you don't need.", participantsCount: 34, reward: '100 XP', isActive: false },
-            { title: 'Invest $100', description: "Put $100 into an index fund.", participantsCount: 220, reward: 'Investor Badge', isActive: false },
-            { title: 'Emergency Fund Starter', description: "Reach $1000 in emergency fund.", participantsCount: 400, reward: 'Safety Badge', isActive: false },
+            { title: 'No Eating Out Week', description: "Cook all meals at home for 7 days.", participantsCount: 142, reward: 500, isActive: true },
+            { title: 'Save $500 this Month', description: "Put aside $500 into savings.", participantsCount: 320, reward: 750, isActive: true },
+            { title: 'Zero Spend Weekend', description: "Spend $0 on Saturday and Sunday.", participantsCount: 89, reward: 200, isActive: true },
+            { title: 'Debt Destroyer', description: "Pay off $200 of debt extra this month.", participantsCount: 45, reward: 600, isActive: true },
+            { title: 'Coffeeless Week', description: "Skip the coffee shop run for a week.", participantsCount: 210, reward: 100, isActive: true },
+            { title: 'Subscription Cull', description: "Cancel one unused subscription.", participantsCount: 56, reward: 300, isActive: true },
+            { title: 'Grocery Run Under $50', description: "Keep grocery bill under $50.", participantsCount: 112, reward: 150, isActive: false },
+            { title: '30 Day Savings Streak', description: "Save at least $5 every day.", participantsCount: 78, reward: 900, isActive: false },
+            { title: 'Sell One Item', description: "Sell something you don't need.", participantsCount: 34, reward: 100, isActive: false },
+            { title: 'Invest $100', description: "Put $100 into an index fund.", participantsCount: 220, reward: 350, isActive: false },
+            { title: 'Emergency Fund Starter', description: "Reach $1000 in emergency fund.", participantsCount: 400, reward: 1000, isActive: false },
         ];
         await Challenge.insertMany(challenges);
         console.log('Challenges seeded');
