@@ -102,13 +102,17 @@ function ManageCategoriesModal({ onClose }) {
                             </div>
                         </div>
 
-                        <div className="category-form-row">
-                            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Category name" required />
-                            <select value={newType} onChange={e => setNewType(e.target.value)}>
-                                <option value="expense">Expense</option>
-                                <option value="income">Income</option>
-                            </select>
-                            <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} className="category-color-input" />
+                        <div className="category-form-row" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Category name" required style={{ width: '100%' }} />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <select value={newType} onChange={e => setNewType(e.target.value)}>
+                                    <option value="expense">Expense</option>
+                                    <option value="income">Income</option>
+                                </select>
+                            </div>
+                            <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} className="category-color-input" style={{ width: '50px', height: '45px', padding: 0 }} />
                             <button className="btn-primary" type="submit">Add</button>
                         </div>
                     </form>
@@ -117,9 +121,11 @@ function ManageCategoriesModal({ onClose }) {
                         {categories.map(cat => (
                             <div key={cat._id} className="transaction-item category-row">
                                 {editingId === cat._id ? (
-                                    <div className="category-edit-row">
-                                        <input value={editName} onChange={e => setEditName(e.target.value)} />
-                                        <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} className="category-color-input" />
+                                    <div className="category-edit-row" style={{ display: 'flex', gap: '10px', alignItems: 'center', width: '100%' }}>
+                                        <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                                            <input value={editName} onChange={e => setEditName(e.target.value)} style={{ width: '100%' }} />
+                                        </div>
+                                        <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} className="category-color-input" style={{ width: '40px', height: '40px', padding: 0 }} />
                                         <button type="button" className="icon-action success" onClick={() => handleUpdate(cat._id)}>
                                             <i className="fa-solid fa-check"></i>
                                         </button>
